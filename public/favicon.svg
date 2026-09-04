@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="ergonGrad" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6366F1" />
+      <stop offset="0.5" stop-color="#8B5CF6" />
+      <stop offset="1" stop-color="#EC4899" />
+    </linearGradient>
+    <linearGradient id="foldGrad" x1="38" y1="8" x2="54" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C084FC" />
+      <stop offset="1" stop-color="#818CF8" />
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="64" height="64" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#8B5CF6" flood-opacity="0.35" />
+    </filter>
+  </defs>
+  
+  <!-- Outer glowing backdrop -->
+  <rect width="64" height="64" rx="16" fill="#0F172A" />
+  
+  <!-- Document Shape -->
+  <path d="M16 12C16 9.79086 17.7909 8 20 8H38L52 22V52C52 54.2091 50.2091 56 48 56H20C17.7909 56 16 54.2091 16 52V12Z" fill="url(#ergonGrad)" filter="url(#glow)" />
+  
+  <!-- Folded Corner -->
+  <path d="M38 8V20C38 21.1046 38.8954 22 40 22H52L38 8Z" fill="url(#foldGrad)" />
+
+  <!-- Document Action Symbol (Infinity/Flow loop symbolizing effortless work) -->
+  <path d="M25 36C25 33.7909 26.7909 32 29 32C31.5 32 33 34.5 34 36C35 37.5 36.5 40 39 40C41.2091 40 43 38.2091 43 36C43 33.7909 41.2091 32 39 32C36.5 32 35 34.5 34 36C33 37.5 31.5 40 29 40C26.7909 40 25 38.2091 25 36Z" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: ErgonPDF Headless API Specification
+  description: API specifications for ErgonPDF client-side and self-hosted server processing engine.
+  version: 1.0.0
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local self-hosted instance
+
+paths:
+  /pdf/merge:
+    post:
+      summary: Merge multiple PDF documents
+      description: Combines multiple PDF files in specified order into a single PDF.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: Merged PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/compress:
+    post:
+      summary: Compress PDF file
+      description: Downsamples embedded images and strips redundant objects.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                level:
+                  type: string
+                  enum: [max, balanced, quality]
+                  default: balanced
+      responses:
+        '200':
+          description: Compressed PDF document
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/ocr:
+    post:
+      summary: Extract searchable text layer via OCR
+      description: Performs optical character recognition on scanned pages.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                language:
+                  type: string
+                  default: eng
+      responses:
+        '200':
+          description: Searchable text result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                  confidence:
+                    type: number
