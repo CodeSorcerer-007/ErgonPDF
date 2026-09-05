@@ -551,11 +551,9 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       overflow: 'hidden',
     }}>
       {/* 1. Top Workspace Header Toolbar */}
-      <div className="glass-panel" style={{
-        borderRadius: 0,
-        borderLeft: 'none',
-        borderRight: 'none',
-        borderTop: 'none',
+      <div style={{
+        background: 'var(--bg-card)',
+        borderBottom: '1px solid var(--border-subtle)',
         padding: '10px 20px',
         display: 'flex',
         alignItems: 'center',
@@ -569,22 +567,24 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-secondary btn-sm"
             title="Return to Home"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={14} strokeWidth={1.75} />
             <span>Home</span>
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{
-              fontWeight: 700,
-              fontSize: '15px',
+              fontWeight: 600,
+              fontSize: '14px',
               maxWidth: '240px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.01em',
             }}>
               {docState.name}
             </span>
-            <span className="badge badge-muted" style={{ fontSize: '11px' }}>
+            <span className="badge badge-muted" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
               {(docState.size / (1024 * 1024)).toFixed(1)} MB
             </span>
             <span className="badge badge-privacy" style={{ fontSize: '11px' }}>
@@ -602,7 +602,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Undo (Ctrl + Z)"
           >
-            <Undo size={15} />
+            <Undo size={15} strokeWidth={1.5} />
           </button>
           <button
             onClick={handleRedo}
@@ -610,10 +610,10 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Redo (Ctrl + Y)"
           >
-            <Redo size={15} />
+            <Redo size={15} strokeWidth={1.5} />
           </button>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-medium)', margin: '0 4px' }} />
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
           {/* Page Navigator */}
           <button
@@ -622,10 +622,10 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Previous Page"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={16} strokeWidth={1.5} />
           </button>
-          <span style={{ fontSize: '13px', fontWeight: 600, minWidth: '70px', textAlign: 'center' }}>
-            {currentPageNum} / {activePages.length}
+          <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: '70px', textAlign: 'center', color: 'var(--text-primary)' }}>
+            {String(currentPageNum).padStart(2, '0')} / {String(activePages.length).padStart(2, '0')}
           </span>
           <button
             onClick={() => setCurrentPageNum((p) => Math.min(activePages.length, p + 1))}
@@ -633,10 +633,10 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Next Page"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={16} strokeWidth={1.5} />
           </button>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-medium)', margin: '0 4px' }} />
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
           {/* Zoom Controls */}
           <button
@@ -644,9 +644,9 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Zoom Out"
           >
-            <ZoomOut size={15} />
+            <ZoomOut size={15} strokeWidth={1.5} />
           </button>
-          <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', minWidth: '42px', textAlign: 'center' }}>
+          <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', minWidth: '42px', textAlign: 'center', color: 'var(--text-secondary)' }}>
             {Math.round(zoomScale * 100)}%
           </span>
           <button
@@ -654,10 +654,10 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Zoom In"
           >
-            <ZoomIn size={15} />
+            <ZoomIn size={15} strokeWidth={1.5} />
           </button>
 
-          <div style={{ width: '1px', height: '20px', background: 'var(--border-medium)', margin: '0 4px' }} />
+          <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
           {/* Rotate Current Page */}
           <button
@@ -665,14 +665,14 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-ghost btn-icon"
             title="Rotate Left 90°"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={15} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => handleRotatePage(90)}
             className="btn btn-ghost btn-icon"
             title="Rotate Right 90°"
           >
-            <RotateCw size={15} />
+            <RotateCw size={15} strokeWidth={1.5} />
           </button>
         </div>
 
@@ -683,7 +683,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Sparkles size={14} color="#8b5cf6" />
+            <Sparkles size={14} strokeWidth={1.75} color="var(--accent-primary)" />
             <span>AI Studio</span>
           </button>
 
@@ -699,7 +699,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               </>
             ) : (
               <>
-                <Download size={14} />
+                <Download size={14} strokeWidth={1.75} />
                 <span>Export PDF</span>
               </>
             )}
@@ -717,7 +717,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         {/* Left Thumbnails Rail */}
         <aside style={{
           width: '240px',
-          background: 'var(--bg-secondary)',
+          background: 'var(--bg-card)',
           borderRight: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
@@ -727,7 +727,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           flexShrink: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
               Pages ({activePages.length})
             </span>
           </div>
@@ -740,23 +740,27 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <div
                 key={index}
                 onClick={() => setCurrentPageNum(index + 1)}
-                className="glass-card"
+                className="interactive-card"
                 style={{
                   padding: '8px',
                   cursor: 'pointer',
-                  border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                  background: isSelected ? 'var(--accent-primary-light)' : 'var(--bg-tertiary)',
+                  borderRadius: 'var(--radius-md)',
+                  border: isSelected ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                  background: isSelected ? 'var(--bg-card)' : 'var(--bg-primary)',
+                  boxShadow: isSelected ? '0 0 0 1px var(--accent-primary), var(--shadow-xs)' : 'var(--shadow-xs)',
                   position: 'relative',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '6px',
+                  transition: 'var(--transition-fast)',
                 }}
               >
                 {/* Thumbnail Image */}
                 <div style={{
                   height: '140px',
                   background: '#ffffff',
-                  borderRadius: '4px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-subtle)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -776,7 +780,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                       }}
                     />
                   ) : (
-                    <FileText size={28} color="#94a3b8" />
+                    <FileText size={28} strokeWidth={1.5} color="var(--text-muted)" />
                   )}
 
                   {/* Page number badge */}
@@ -784,12 +788,13 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                     position: 'absolute',
                     bottom: '6px',
                     left: '6px',
-                    background: 'rgba(15, 23, 42, 0.75)',
+                    background: 'rgba(22, 22, 22, 0.85)',
                     color: '#ffffff',
                     fontSize: '10px',
-                    fontWeight: 700,
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 600,
                     padding: '1px 6px',
-                    borderRadius: '4px',
+                    borderRadius: 'var(--radius-sm)',
                   }}>
                     {index + 1}
                   </span>
@@ -873,13 +878,14 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           {activePage ? (
             <div style={{
               position: 'relative',
-              boxShadow: 'var(--shadow-xl)',
-              borderRadius: '4px',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
+              borderRadius: 'var(--radius-sm)',
               background: '#ffffff',
+              border: '1px solid var(--border-subtle)',
               transform: `rotate(${activePage.rotation}deg)`,
               transition: 'transform var(--transition-fast)',
             }}>
-              <canvas ref={canvasRef} style={{ display: 'block', borderRadius: '4px' }} />
+              <canvas ref={canvasRef} style={{ display: 'block', borderRadius: 'var(--radius-sm)' }} />
 
               {/* Drawing Annotation Layer */}
               <canvas
@@ -890,7 +896,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                   top: 0,
                   width: '100%',
                   height: '100%',
-                  borderRadius: '4px',
+                  borderRadius: 'var(--radius-sm)',
                   pointerEvents: currentToolTab === 'annotate-pdf' ? 'auto' : 'none',
                   cursor: currentToolTab === 'annotate-pdf' ? 'crosshair' : 'default',
                   zIndex: 2,
@@ -915,8 +921,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                       cursor: 'move',
                       border: '1px dashed var(--accent-primary)',
                       padding: '4px',
-                      borderRadius: '4px',
-                      background: 'rgba(99, 102, 241, 0.08)',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(200, 76, 50, 0.08)',
                     }}
                   >
                     <img src={sig.dataUrl} alt="Signature" style={{ width: '100%', display: 'block' }} />
@@ -994,7 +1000,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         {/* Right Contextual Tool Panel */}
         <aside style={{
           width: '320px',
-          background: 'var(--bg-secondary)',
+          background: 'var(--bg-card)',
           borderLeft: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
@@ -1005,16 +1011,16 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           <div style={{
             padding: '12px 16px',
             borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-tertiary)',
+            background: 'var(--bg-primary)',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
                 Active Tool
               </span>
-              <span className="badge badge-accent" style={{ fontSize: '10px' }}>
+              <span className="badge badge-muted" style={{ fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
                 38 Tools Active
               </span>
             </div>
@@ -1028,8 +1034,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                 width: '100%',
                 padding: '8px 10px',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
-                background: 'var(--bg-primary)',
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-card)',
                 color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 600,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, FileText } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 interface FooterProps {
   onOpenDocs: () => void;
@@ -17,8 +17,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
   return (
     <footer style={{
       borderTop: '1px solid var(--border-subtle)',
-      background: 'var(--bg-secondary)',
-      padding: '40px 24px 32px',
+      background: 'var(--bg-card)',
+      padding: '44px 24px 36px',
       marginTop: 'auto',
     }}>
       <div style={{
@@ -36,41 +36,61 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
           gap: '16px',
         }}>
           {/* Brand */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '28px',
               height: '28px',
-              borderRadius: '8px',
-              background: 'var(--accent-gradient)',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-primary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              color: '#ffffff',
+              fontWeight: 700,
+              fontSize: '16px',
+              fontFamily: 'var(--font-serif)',
+              letterSpacing: '-0.02em',
+              boxShadow: 'var(--shadow-xs)',
+              flexShrink: 0,
             }}>
-              <FileText size={16} color="#ffffff" />
+              E
             </div>
             <div>
-              <span style={{ fontWeight: 800, fontSize: '16px', letterSpacing: '-0.02em' }}>
+              <span style={{ 
+                fontFamily: 'var(--font-serif)',
+                fontWeight: 600, 
+                fontSize: '18px', 
+                letterSpacing: '-0.02em',
+                color: 'var(--text-primary)',
+              }}>
                 ErgonPDF
               </span>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '8px' }}>
-                Open-Source PDF Workspace
+              <span style={{ 
+                fontSize: '12px', 
+                color: 'var(--text-muted)', 
+                marginLeft: '10px',
+                borderLeft: '1px solid var(--border-subtle)',
+                paddingLeft: '10px',
+              }}>
+                Precision Utilitarian PDF Suite
               </span>
             </div>
           </div>
 
           {/* Quick links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '18px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-            <button onClick={onOpenDocs} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            <button onClick={onOpenDocs} className="btn btn-ghost btn-sm" style={{ padding: '5px 10px' }}>
               Architecture & API
             </button>
-            <button onClick={onOpenSettings} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px' }}>
+            <button onClick={onOpenSettings} className="btn btn-ghost btn-sm" style={{ padding: '5px 10px' }}>
               Settings & Privacy
             </button>
             <a 
               href="https://github.com/ergonpdf/ergonpdf" 
               target="_blank" 
               rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              className="btn btn-ghost btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px' }}
             >
               <GithubIcon size={14} />
               <span>GitHub</span>
@@ -89,13 +109,15 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
           fontSize: '12px',
           color: 'var(--text-muted)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <ShieldCheck size={14} color="#10b981" />
-            <span>Zero Document Uploads • 100% In-Browser Local Execution • MIT Licensed</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="badge badge-privacy" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <ShieldCheck size={12} strokeWidth={2} />
+              Zero Document Uploads • 100% In-Browser Local Execution
+            </span>
           </div>
 
-          <div>
-            Built with meticulous attention to detail for users everywhere.
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }}>
+            Precision client-side engine • MIT Licensed
           </div>
         </div>
       </div>

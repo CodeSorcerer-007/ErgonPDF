@@ -1,6 +1,5 @@
 import React from 'react';
 import { 
-  FileText, 
   Search, 
   Moon, 
   Sun, 
@@ -24,8 +23,8 @@ interface HeaderProps {
   onNavigateHome: () => void;
 }
 
-const GithubIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const GithubIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
     <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
     <path d="M9 18c-4.51 2-5-2-7-2" />
   </svg>
@@ -43,20 +42,18 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigateHome,
 }) => {
   return (
-    <header className="glass-panel" style={{
+    <header style={{
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      borderRadius: 0,
-      borderTop: 'none',
-      borderLeft: 'none',
-      borderRight: 'none',
-      padding: '12px 24px',
+      background: 'var(--bg-secondary)',
+      borderBottom: '1px solid var(--border-subtle)',
+      padding: '12px 28px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
     }}>
-      {/* Brand & Logo */}
+      {/* Brand: Warm Swiss Editorial Wordmark */}
       <div 
         onClick={onNavigateHome}
         style={{
@@ -67,43 +64,51 @@ export const Header: React.FC<HeaderProps> = ({
           userSelect: 'none',
         }}
       >
+        {/* Terracotta Minimalist Mark */}
         <div style={{
-          width: '38px',
-          height: '38px',
-          borderRadius: '10px',
-          background: 'var(--accent-gradient)',
+          width: '32px',
+          height: '32px',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--accent-primary)',
+          color: '#FFFFFF',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+          fontFamily: 'var(--font-serif)',
+          fontSize: '20px',
+          fontWeight: 400,
+          lineHeight: 1,
         }}>
-          <FileText size={22} color="#ffffff" strokeWidth={2.2} />
+          E
         </div>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: '20px',
-              letterSpacing: '-0.02em',
-              background: 'var(--accent-gradient)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}>
-              ErgonPDF
-            </span>
-            <span className="badge badge-accent" style={{ fontSize: '11px', padding: '1px 6px' }}>
-              v1.0 OSS
-            </span>
-          </div>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1 }}>
-            Privacy-First PDF Workspace
-          </p>
+
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+          <span style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: '23px',
+            letterSpacing: '-0.01em',
+            color: 'var(--text-primary)',
+          }}>
+            Ergon
+          </span>
+          <span style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '11px',
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            color: 'var(--accent-primary)',
+            textTransform: 'uppercase',
+          }}>
+            PDF
+          </span>
+          <span className="badge" style={{ fontSize: '10px', marginLeft: '4px' }}>
+            v1.0
+          </span>
         </div>
       </div>
 
-      {/* Navigation Links */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: '6px' }} className="desktop-nav">
+      {/* Navigation: Monochromatic & Architectural */}
+      <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="desktop-nav">
         <button 
           onClick={onNavigateHome}
           className="btn btn-ghost btn-sm"
@@ -115,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="btn btn-ghost btn-sm"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
-          <Sparkles size={14} color="#8b5cf6" />
+          <Sparkles size={13} strokeWidth={1.6} />
           <span>AI Studio</span>
         </button>
         <button 
@@ -123,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="btn btn-ghost btn-sm"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
-          <Layers size={14} />
+          <Layers size={13} strokeWidth={1.6} />
           <span>Batch Queue</span>
         </button>
         <button 
@@ -131,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
           className="btn btn-ghost btn-sm"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
-          <GitCompare size={14} />
+          <GitCompare size={13} strokeWidth={1.6} />
           <span>Compare</span>
         </button>
         <button 
@@ -139,14 +144,14 @@ export const Header: React.FC<HeaderProps> = ({
           className="btn btn-ghost btn-sm"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
-          <BookOpen size={14} />
-          <span>Docs & API</span>
+          <BookOpen size={13} strokeWidth={1.6} />
+          <span>Docs</span>
         </button>
       </nav>
 
-      {/* Action Controls & Badges */}
+      {/* Right Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Command Search Bar Trigger */}
+        {/* Quick Intent Command Trigger */}
         <button 
           onClick={onOpenCommandPalette}
           className="btn btn-secondary btn-sm"
@@ -154,34 +159,37 @@ export const Header: React.FC<HeaderProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            padding: '6px 12px',
+            padding: '5px 12px',
             color: 'var(--text-secondary)',
           }}
           title="Search tools or intent (Ctrl + K)"
         >
-          <Search size={14} />
-          <span style={{ fontSize: '13px' }}>Quick Search…</span>
+          <Search size={13} strokeWidth={1.6} />
+          <span style={{ fontSize: '12.5px' }}>Find tool…</span>
           <kbd style={{
             fontSize: '10px',
             fontFamily: 'var(--font-mono)',
-            padding: '2px 5px',
-            background: 'var(--bg-elevated)',
-            border: '1px solid var(--border-medium)',
-            borderRadius: '4px',
+            padding: '1px 5px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
             color: 'var(--text-muted)',
           }}>
             ⌘K
           </kbd>
         </button>
 
-        {/* Local Processing Badge */}
+        {/* Security & Local Privacy Badge: Archival Forest Green */}
         <div 
           className="badge badge-privacy"
-          title="Documents are processed completely inside your browser using WebAssembly & Web Workers. Zero server upload."
+          title="100% Client-Side Privacy: Your documents never leave your browser."
+          style={{ padding: '3px 8px' }}
         >
-          <ShieldCheck size={13} />
-          <span>Local Only</span>
+          <ShieldCheck size={12} strokeWidth={1.8} />
+          <span>100% Local</span>
         </div>
+
+        <div style={{ width: '1px', height: '18px', background: 'var(--border-subtle)', margin: '0 2px' }} />
 
         {/* Theme Switcher */}
         <button 
@@ -190,29 +198,29 @@ export const Header: React.FC<HeaderProps> = ({
           title={`Switch to ${currentTheme === 'dark' ? 'Light' : 'Dark'} mode`}
           aria-label="Toggle theme"
         >
-          {currentTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {currentTheme === 'dark' ? <Sun size={15} strokeWidth={1.6} /> : <Moon size={15} strokeWidth={1.6} />}
         </button>
 
-        {/* Settings Button */}
+        {/* Settings */}
         <button 
           onClick={onOpenSettings}
           className="btn btn-ghost btn-icon"
           title="Workspace Settings"
           aria-label="Settings"
         >
-          <SettingsIcon size={18} />
+          <SettingsIcon size={15} strokeWidth={1.6} />
         </button>
 
-        {/* GitHub Link */}
+        {/* GitHub */}
         <a 
-          href="https://github.com/ergonpdf/ergonpdf" 
+          href="https://github.com/CodeSorcerer-007/ErgonPDF" 
           target="_blank" 
           rel="noopener noreferrer"
           className="btn btn-ghost btn-icon"
           title="Open Source Repository on GitHub"
           aria-label="GitHub Repository"
         >
-          <GithubIcon size={18} />
+          <GithubIcon size={15} />
         </a>
       </div>
     </header>

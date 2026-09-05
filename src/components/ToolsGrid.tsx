@@ -42,7 +42,8 @@ import {
   Table,
   Archive,
   KeyRound,
-  Eye
+  Eye,
+  ArrowRight
 } from 'lucide-react';
 import { TOOLS_REGISTRY, CATEGORY_LABELS } from '../config/toolsRegistry';
 import type { PDFTool } from '../types/pdf';
@@ -53,7 +54,7 @@ interface ToolsGridProps {
   onToggleFavorite: (toolId: string) => void;
 }
 
-// Icon mapper
+// Icon mapper with unified 1.5px stroke
 const ICON_MAP: Record<string, React.ElementType> = {
   Layers,
   Scissors,
@@ -98,6 +99,46 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Eye,
 };
 
+// Intent Section Grouping definitions
+const INTENT_GROUPS = [
+  {
+    key: 'organize',
+    title: 'Assemble & Arrange',
+    subtitle: 'Merge, split, reorder, rotate, and impose document page structures.',
+    categoryIds: ['organize'],
+  },
+  {
+    key: 'compress',
+    title: 'Compress & Optimize',
+    subtitle: 'Lossless size reduction, stream defragmentation, and document repair.',
+    categoryIds: ['compress'],
+  },
+  {
+    key: 'security',
+    title: 'Security & Privacy',
+    subtitle: 'AES-256 encryption, password restrictions, visual redactions, and metadata sanitization.',
+    categoryIds: ['security'],
+  },
+  {
+    key: 'convert',
+    title: 'Convert & Extract',
+    subtitle: 'Transform between PDFs, high-res images, Word documents, and tabular spreadsheets.',
+    categoryIds: ['convert'],
+  },
+  {
+    key: 'edit',
+    title: 'Sign, Annotate & Watermark',
+    subtitle: 'Digital signatures, drawing markup, dynamic pagination, and letterheads.',
+    categoryIds: ['edit'],
+  },
+  {
+    key: 'intelligence',
+    title: 'Capture & Intelligence',
+    subtitle: 'Camera scanning, web extraction, OCR text recognition, and AI document studio.',
+    categoryIds: ['create', 'ocr', 'ai', 'view'],
+  },
+];
+
 export const ToolsGrid: React.FC<ToolsGridProps> = ({
   onSelectTool,
   favorites,
@@ -118,27 +159,152 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
     return matchesCategory && matchesSearch;
   });
 
+  // Render a single tool card with Warm Swiss Monochromatic aesthetics
+  const renderToolCard = (tool: PDFTool) => {
+    const Icon = ICON_MAP[tool.iconName] || FileText;
+    const isFavorited = favorites.includes(tool.id);
+
+    return (
+      <div
+        key={tool.id}
+        onClick={() => onSelectTool(tool.id)}
+        className="glass-card"
+        style={{
+          padding: '18px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          position: 'relative',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid var(--border-subtle)',
+          background: 'var(--bg-secondary)',
+        }}
+      >
+        <div>
+          {/* Card Top: Monochromatic Icon + Badge + Favorite */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+          }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Icon size={18} strokeWidth={1.6} />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {tool.badge && (
+                <span className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                  {tool.badge}
+                </span>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(tool.id);
+                }}
+                className="btn btn-ghost btn-icon"
+                style={{ padding: '3px' }}
+                title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+              >
+                <Star 
+                  size={13} 
+                  fill={isFavorited ? 'var(--accent-primary)' : 'transparent'} 
+                  color={isFavorited ? 'var(--accent-primary)' : 'var(--text-muted)'} 
+                />
+              </button>
+            </div>
+          </div>
+
+          <h3 style={{
+            fontSize: '15px',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 600,
+            marginBottom: '5px',
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.01em',
+          }}>
+            {tool.name}
+          </h3>
+
+          <p style={{
+            fontSize: '12.5px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.48,
+            marginBottom: '16px',
+          }}>
+            {tool.description}
+          </p>
+        </div>
+
+        {/* Card Footer: Metadata + Action Link */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingTop: '10px',
+          borderTop: '1px solid var(--border-subtle)',
+          fontSize: '11px',
+          fontFamily: 'var(--font-mono)',
+          color: 'var(--text-muted)',
+        }}>
+          <span>100% Local</span>
+          <span style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+          }}>
+            <span>Open</span>
+            <ArrowRight size={11} strokeWidth={2} />
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section style={{
-      maxWidth: '1200px',
+      maxWidth: '1160px',
       margin: '0 auto',
-      padding: '24px 24px 64px',
+      padding: '24px 24px 72px',
     }}>
-      {/* Section Header & Search */}
+      {/* Directory Section Header & Filter */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'baseline',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '16px',
+        borderBottom: '1px solid var(--border-subtle)',
+        paddingBottom: '18px',
         marginBottom: '24px',
       }}>
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>
-            Explore All Document Tools
+          <h2 style={{
+            fontSize: '32px',
+            fontFamily: 'var(--font-serif)',
+            fontWeight: 400,
+            letterSpacing: '-0.01em',
+            marginBottom: '4px',
+            color: 'var(--text-primary)',
+          }}>
+            Document Tools Directory
           </h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
-            Choose a specialized tool or start directly by uploading in the workspace above.
+          <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
+            43 precision utilities organized by operational workflow.
           </p>
         </div>
 
@@ -147,24 +313,24 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          background: 'var(--bg-glass)',
-          border: '1px solid var(--border-medium)',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: 'var(--radius-md)',
-          padding: '8px 14px',
+          padding: '6px 12px',
           width: '100%',
-          maxWidth: '300px',
+          maxWidth: '260px',
         }}>
-          <Search size={16} color="var(--text-muted)" />
+          <Search size={14} color="var(--text-muted)" />
           <input 
             type="text"
-            placeholder="Filter tools by keyword…"
+            placeholder="Search all 43 tools…"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             style={{
               border: 'none',
               background: 'transparent',
               outline: 'none',
-              fontSize: '13px',
+              fontSize: '12.5px',
               color: 'var(--text-primary)',
               width: '100%',
             }}
@@ -172,14 +338,14 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
         </div>
       </div>
 
-      {/* Category Tabs */}
+      {/* Architectural Category Pills */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
+        gap: '6px',
         overflowX: 'auto',
         paddingBottom: '12px',
-        marginBottom: '28px',
+        marginBottom: '32px',
         scrollbarWidth: 'none',
       }}>
         {categories.map((catKey) => {
@@ -190,13 +356,13 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
               onClick={() => setSelectedCategory(catKey)}
               className="btn btn-sm"
               style={{
-                borderRadius: 'var(--radius-full)',
-                padding: '6px 14px',
-                background: isActive ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
-                color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                border: isActive ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 12px',
+                background: isActive ? 'var(--text-primary)' : 'var(--bg-secondary)',
+                color: isActive ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                border: '1px solid ' + (isActive ? 'var(--text-primary)' : 'var(--border-subtle)'),
+                fontSize: '12px',
                 fontWeight: isActive ? 600 : 500,
-                boxShadow: isActive ? '0 2px 8px rgba(99, 102, 241, 0.3)' : 'none',
               }}
             >
               {CATEGORY_LABELS[catKey]}
@@ -205,103 +371,69 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
         })}
       </div>
 
-      {/* Tools Card Grid */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-        gap: '18px',
-      }}>
-        {filteredTools.map((tool: PDFTool) => {
-          const Icon = ICON_MAP[tool.iconName] || FileText;
-          const isFavorited = favorites.includes(tool.id);
+      {/* If filtering by search or specific category: flat grid */}
+      {(selectedCategory !== 'all' || searchFilter.trim()) ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: '16px',
+        }}>
+          {filteredTools.map(renderToolCard)}
+        </div>
+      ) : (
+        /* Semantic Groups by Intent (Default View) */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+          {INTENT_GROUPS.map((group) => {
+            const groupTools = filteredTools.filter((t) => group.categoryIds.includes(t.category));
+            if (groupTools.length === 0) return null;
 
-          return (
-            <div
-              key={tool.id}
-              onClick={() => onSelectTool(tool.id)}
-              className="glass-card"
-              style={{
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              <div>
+            return (
+              <div key={group.key}>
+                {/* Group Heading */}
                 <div style={{
                   display: 'flex',
-                  alignItems: 'flex-start',
+                  alignItems: 'baseline',
                   justifyContent: 'space-between',
-                  marginBottom: '14px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  paddingBottom: '10px',
+                  marginBottom: '18px',
                 }}>
-                  <div style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '12px',
-                    background: 'var(--accent-primary-light)',
-                    color: 'var(--accent-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                  <div>
+                    <h3 style={{
+                      fontSize: '22px',
+                      fontFamily: 'var(--font-serif)',
+                      fontWeight: 400,
+                      color: 'var(--text-primary)',
+                      letterSpacing: '-0.01em',
+                    }}>
+                      {group.title}
+                    </h3>
+                    <p style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                      {group.subtitle}
+                    </p>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-muted)',
                   }}>
-                    <Icon size={22} strokeWidth={2} />
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {tool.badge && (
-                      <span className="badge badge-accent" style={{ fontSize: '10px' }}>
-                        {tool.badge}
-                      </span>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFavorite(tool.id);
-                      }}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '4px' }}
-                      title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <Star 
-                        size={15} 
-                        fill={isFavorited ? '#f59e0b' : 'transparent'} 
-                        color={isFavorited ? '#f59e0b' : 'var(--text-muted)'} 
-                      />
-                    </button>
-                  </div>
+                    {groupTools.length} {groupTools.length === 1 ? 'tool' : 'tools'}
+                  </span>
                 </div>
 
-                <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
-                  {tool.name}
-                </h3>
-
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.45, marginBottom: '16px' }}>
-                  {tool.description}
-                </p>
+                {/* Group Tools Grid */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                  gap: '16px',
+                }}>
+                  {groupTools.map(renderToolCard)}
+                </div>
               </div>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingTop: '12px',
-                borderTop: '1px solid var(--border-subtle)',
-                fontSize: '11px',
-                color: 'var(--text-muted)',
-              }}>
-                <span className="badge badge-privacy" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                  100% Local
-                </span>
-                <span style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>
-                  Use Tool →
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 };

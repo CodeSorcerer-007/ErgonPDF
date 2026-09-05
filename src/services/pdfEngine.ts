@@ -15,7 +15,7 @@ import type {
   QRCodeSettings,
   FormFieldDef
 } from '../types/pdf';
-import { QRGenerator } from './qrGenerator';
+import { QRGenerator } from './qrGenerator.ts';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
 
 // Configure local worker from public directory for 100% offline, private rendering
@@ -118,7 +118,7 @@ export class PDFEngineService {
     canvas: HTMLCanvasElement, 
     scale = 1.0
   ): Promise<void> {
-    const loadingTask = pdfjsLib.getDocument({ data: data.slice(0) });
+    const loadingTask = PDFEngineService.getPdfLoadingTask(data);
     const pdfDoc = await loadingTask.promise;
     const page = await pdfDoc.getPage(pageNumber);
 
@@ -253,7 +253,7 @@ export class PDFEngineService {
 
     // 2. Visual / Raster downsampling pass
     try {
-      const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0) });
+      const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
       const pdfDoc = await loadingTask.promise;
       const pageCount = pdfDoc.numPages;
       const newDoc = await PDFDocument.create();
@@ -512,7 +512,7 @@ export class PDFEngineService {
     format: 'png' | 'jpeg' | 'webp' = 'png',
     scale = 2.0
   ): Promise<{ pageNumber: number; dataUrl: string; blob: Blob }[]> {
-    const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0) });
+    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
     const results: { pageNumber: number; dataUrl: string; blob: Blob }[] = [];
@@ -580,7 +580,7 @@ export class PDFEngineService {
   static async extractFullText(
     buffer: ArrayBuffer
   ): Promise<{ text: string; pages: { pageNumber: number; text: string }[] }> {
-    const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0) });
+    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
     const pageTexts: { pageNumber: number; text: string }[] = [];
@@ -590,7 +590,7 @@ export class PDFEngineService {
       const page = await pdfDoc.getPage(i);
       const textContent = await page.getTextContent();
       const pageString = textContent.items
-        .map((item) => ('str' in item ? (item as { str: string }).str : ''))
+        .map((item: any) => ('str' in item ? (item as { str: string }).str : ''))
         .join(' ');
       
       pageTexts.push({ pageNumber: i, text: pageString });
@@ -848,7 +848,7 @@ export class PDFEngineService {
    * Detects and removes blank or nearly empty pages.
    */
   static async removeBlankPages(buffer: ArrayBuffer, threshold = 0.99): Promise<{ data: Uint8Array; removedCount: number }> {
-    const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0) });
+    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
 
@@ -914,7 +914,7 @@ export class PDFEngineService {
    * Extracts all raster images embedded in the document and returns a ZIP blob.
    */
   static async extractImagesToZip(buffer: ArrayBuffer): Promise<Blob> {
-    const loadingTask = pdfjsLib.getDocument({ data: buffer.slice(0) });
+    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
     const zip = new JSZip();

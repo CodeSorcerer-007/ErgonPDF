@@ -32,27 +32,43 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
   return (
     <div style={{
       maxWidth: '1200px',
-      margin: '0 auto 28px',
+      margin: '0 auto 36px',
       padding: '0 24px',
     }}>
-      <div className="glass-panel" style={{
+      <div style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
         padding: '16px 20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: '14px',
+        boxShadow: 'var(--shadow-xs)',
       }}>
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Clock size={16} color="var(--accent-primary)" />
-            <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-primary)',
+            }}>
+              <Clock size={14} strokeWidth={1.75} />
+            </div>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
               Recent Workspace Documents
             </span>
-            <span className="badge badge-muted" style={{ fontSize: '11px' }}>
-              Stored locally on your device
+            <span className="badge badge-muted" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+              stored locally
             </span>
           </div>
 
@@ -62,33 +78,37 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
             style={{ fontSize: '12px', color: 'var(--text-muted)' }}
             title="Clear local file history"
           >
-            <Trash2 size={13} />
+            <Trash2 size={13} strokeWidth={1.5} />
             <span>Clear History</span>
           </button>
         </div>
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-          gap: '12px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          gap: '10px',
         }}>
           {recentFiles.map((file) => (
             <div
               key={file.id}
               onClick={() => onSelectRecent(file)}
-              className="glass-card"
+              className="interactive-card"
               style={{
-                padding: '10px 12px',
+                padding: '10px 14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 cursor: 'pointer',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                transition: 'var(--transition-fast)',
               }}
             >
               <div style={{
-                width: '38px',
+                width: '36px',
                 height: '46px',
-                borderRadius: '6px',
+                borderRadius: 'var(--radius-sm)',
                 background: 'var(--bg-tertiary)',
                 display: 'flex',
                 alignItems: 'center',
@@ -104,7 +124,7 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                   />
                 ) : (
-                  <FileText size={20} color="var(--accent-primary)" />
+                  <FileText size={18} strokeWidth={1.5} color="var(--text-secondary)" />
                 )}
               </div>
 
@@ -116,6 +136,7 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   color: 'var(--text-primary)',
+                  letterSpacing: '-0.01em',
                 }}>
                   {file.name}
                 </div>
@@ -125,11 +146,11 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  marginTop: '2px',
+                  marginTop: '3px',
                 }}>
-                  <span>{file.lastAction}</span>
+                  <span style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>{file.lastAction}</span>
                   <span>•</span>
-                  <span>{formatFileSize(file.size)}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>{formatFileSize(file.size)}</span>
                   <span>•</span>
                   <span>{formatTimeAgo(file.timestamp)}</span>
                 </div>
