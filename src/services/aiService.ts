@@ -60,61 +60,62 @@ export class AIService {
     const wordCount = words.length;
     const readingTime = Math.max(1, Math.round(wordCount / 200));
 
-    // Heuristic Classification
-    let type: DocumentType = 'general';
-    let confidence = 0.7;
+    // Robust Multi-Signal Heuristic Classification
+    const scores: Record<DocumentType, number> = {
+      contract: 0,
+      invoice: 0,
+      academic_paper: 0,
+      resume: 0,
+      form: 0,
+      report: 0,
+      general: 0,
+    };
 
-    if (
-      lower.includes('invoice') || 
-      lower.includes('bill to') || 
-      lower.includes('subtotal') || 
-      lower.includes('due date') ||
-      lower.includes('payment terms')
-    ) {
-      type = 'invoice';
-      confidence = 0.92;
-    } else if (
-      lower.includes('agreement') || 
-      lower.includes('contract') || 
-      lower.includes('terms and conditions') || 
-      lower.includes('parties') ||
-      lower.includes('hereby')
-    ) {
-      type = 'contract';
-      confidence = 0.89;
-    } else if (
-      lower.includes('abstract') || 
-      lower.includes('references') || 
-      lower.includes('methodology') || 
-      lower.includes('et al') ||
-      lower.includes('doi:')
-    ) {
-      type = 'academic_paper';
-      confidence = 0.91;
-    } else if (
-      lower.includes('curriculum vitae') || 
-      lower.includes('resume') || 
-      (lower.includes('experience') && lower.includes('education') && lower.includes('skills'))
-    ) {
-      type = 'resume';
-      confidence = 0.94;
-    } else if (
-      lower.includes('fillable') || 
-      lower.includes('signature:') || 
-      lower.includes('date of birth') || 
-      lower.includes('application form')
-    ) {
-      type = 'form';
-      confidence = 0.85;
-    } else if (
-      lower.includes('executive summary') || 
-      lower.includes('quarterly report') || 
-      lower.includes('findings') ||
-      lower.includes('overview')
-    ) {
-      type = 'report';
-      confidence = 0.82;
+    // Contract indicators (High-value phrases)
+    if (lower.includes('master services agreement') || lower.includes('service agreement')) scores.contract += 15;
+    if (lower.includes('agreement') || lower.includes('contract')) scores.contract += 6;
+    if (lower.includes('in witness whereof')) scores.contract += 10;
+    if (lower.includes('terms and conditions') || lower.includes('hereby')) scores.contract += 5;
+    if (lower.includes('parties agree') || lower.includes('by and between')) scores.contract += 8;
+    if (lower.includes('confidentiality') || lower.includes('scope of services')) scores.contract += 4;
+
+    // Invoice indicators
+    if (lower.includes('tax invoice') || lower.includes('commercial invoice')) scores.invoice += 15;
+    if (lower.includes('invoice #') || lower.includes('invoice no')) scores.invoice += 12;
+    if (lower.includes('bill to:') || lower.includes('remit to:')) scores.invoice += 10;
+    if (lower.includes('subtotal') || lower.includes('balance due') || lower.includes('amount due')) scores.invoice += 8;
+    if (lower.includes('unit price') || lower.includes('qty')) scores.invoice += 5;
+    if (lower.includes('invoice') && scores.contract < 5) scores.invoice += 4;
+
+    // Academic indicators
+    if (lower.includes('abstract') && lower.includes('references')) scores.academic_paper += 15;
+    if (lower.includes('doi:') || lower.includes('et al.')) scores.academic_paper += 10;
+    if (lower.includes('methodology') || lower.includes('hypothesis')) scores.academic_paper += 6;
+
+    // Resume indicators
+    if (lower.includes('curriculum vitae') || lower.includes('resume')) scores.resume += 15;
+    if (lower.includes('experience') && lower.includes('education') && lower.includes('skills')) scores.resume += 12;
+    if (lower.includes('work history') || lower.includes('professional summary')) scores.resume += 8;
+
+    // Form indicators
+    if (lower.includes('application form') || lower.includes('registration form')) scores.form += 15;
+    if (lower.includes('fillable') || lower.includes('date of birth') || lower.includes('applicant signature')) scores.form += 8;
+
+    // Report indicators
+    if (lower.includes('annual report') || lower.includes('quarterly report')) scores.report += 15;
+    if (lower.includes('executive summary') || lower.includes('key findings')) scores.report += 8;
+
+    let bestType: DocumentType = 'general';
+    let maxScore = 0;
+    for (const [key, val] of Object.entries(scores) as [DocumentType, number][]) {
+      if (val > maxScore) {
+        maxScore = val;
+        bestType = key;
+      }
     }
+
+    const type: DocumentType = maxScore >= 4 ? bestType : 'general';
+    const confidence = maxScore >= 12 ? 0.95 : maxScore >= 6 ? 0.88 : 0.72;
 
     // Extract Entities using RegEx
     const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;

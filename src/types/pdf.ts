@@ -1,10 +1,12 @@
 export type ToolCategory = 
   | 'organize' 
   | 'edit' 
+  | 'create'
   | 'convert' 
   | 'compress' 
   | 'security' 
   | 'ocr' 
+  | 'view'
   | 'ai';
 
 export interface PDFTool {
@@ -69,10 +71,18 @@ export interface PlacedSignature {
 }
 
 export interface CompressionSettings {
-  level: 'max' | 'balanced' | 'quality' | 'custom';
+  level: 'lossless' | 'balanced' | 'max' | 'grayscale' | 'custom';
   imageQuality: number; // 0.1 to 1.0
-  dpi: number; // 72, 150, 300
+  dpi: number; // 72, 96, 150, 300
   removeMetadata: boolean;
+  grayscale?: boolean;
+}
+
+export interface QRCodeSettings {
+  text: string;
+  sizePercent: number; // size relative to page width
+  position: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center';
+  margin: number;
 }
 
 export interface WatermarkSettings {
@@ -110,4 +120,34 @@ export interface RedactionBox {
   yPercent: number;
   widthPercent: number;
   heightPercent: number;
+}
+
+export interface NUpSettings {
+  pagesPerSheet: 2 | 4 | 9 | 16;
+  orientation: 'auto' | 'portrait' | 'landscape';
+  addBorder: boolean;
+}
+
+export interface CropSettings {
+  topPercent: number;
+  bottomPercent: number;
+  leftPercent: number;
+  rightPercent: number;
+  applyToAll: boolean;
+}
+
+export interface ResizeSettings {
+  targetSize: 'A4' | 'A3' | 'A5' | 'Letter' | 'Legal';
+  orientation: 'portrait' | 'landscape';
+}
+
+export interface FormFieldDef {
+  type: 'text' | 'checkbox' | 'dropdown';
+  name: string;
+  pageNumber: number;
+  xPercent: number;
+  yPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+  options?: string[];
 }

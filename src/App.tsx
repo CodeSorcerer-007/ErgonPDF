@@ -10,6 +10,10 @@ import { CompareModal } from './components/CompareModal';
 import { BatchModal } from './components/BatchModal';
 import { SettingsModal } from './components/SettingsModal';
 import { DocsModal } from './components/DocsModal';
+import { CameraScanModal } from './components/CameraScanModal';
+import { WebpageToPdfModal } from './components/WebpageToPdfModal';
+import { PasswordGenModal } from './components/PasswordGenModal';
+import { AlternateMixModal } from './components/AlternateMixModal';
 import { Footer } from './components/Footer';
 
 import type { PDFDocumentState, RecentFile } from './types/pdf';
@@ -35,6 +39,10 @@ export function App() {
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isWebpageModalOpen, setIsWebpageModalOpen] = useState(false);
+  const [isPasswordGenModalOpen, setIsPasswordGenModalOpen] = useState(false);
+  const [isAlternateMixModalOpen, setIsAlternateMixModalOpen] = useState(false);
   const [mergeInitialFiles, setMergeInitialFiles] = useState<File[]>([]);
 
   // Apply Theme attribute to documentElement
@@ -123,21 +131,48 @@ export function App() {
   };
 
   // Quick Action or Tool Selection
-  const handleSelectTool = (toolId: string) => {
+  const handleSelectTool = async (toolId: string) => {
     if (toolId === 'merge-pdf') {
       setIsMergeModalOpen(true);
     } else if (toolId === 'compare-pdf') {
       setIsCompareModalOpen(true);
     } else if (toolId === 'batch') {
       setIsBatchModalOpen(true);
+    } else if (toolId === 'camera-scan') {
+      setIsCameraModalOpen(true);
+    } else if (toolId === 'webpage-to-pdf') {
+      setIsWebpageModalOpen(true);
+    } else if (toolId === 'password-generator') {
+      setIsPasswordGenModalOpen(true);
+    } else if (toolId === 'alternate-mix') {
+      setIsAlternateMixModalOpen(true);
+    } else if (toolId === 'create-pdf') {
+      // Generate instant blank PDF canvas
+      const blankBytes = await PDFEngineService.createBlankPDF('lines', 1);
+      const inspected = await PDFEngineService.inspectDocument(blankBytes.buffer as ArrayBuffer);
+      setActiveDocument({
+        id: `doc-${Date.now()}`,
+        name: 'New_Document.pdf',
+        size: blankBytes.byteLength,
+        arrayBuffer: blankBytes.buffer as ArrayBuffer,
+        pageCount: inspected.pageCount,
+        pages: inspected.pages,
+        metadata: { title: 'New Document' },
+      });
+      setActiveToolId('organize');
     } else {
       setActiveToolId(toolId);
       // If a document is already open, change active tool tab
       if (!activeDocument) {
-        // Trigger file input or notify user
+        // Trigger appropriate file input
         const input = document.createElement('input');
         input.type = 'file';
-        input.accept = '.pdf';
+        if (toolId === 'images-to-pdf') {
+          input.accept = 'image/*,.png,.jpg,.jpeg,.webp';
+          input.multiple = true;
+        } else {
+          input.accept = '.pdf';
+        }
         input.onchange = (e) => {
           const files = (e.target as HTMLInputElement).files;
           if (files && files.length > 0) {
@@ -268,6 +303,33 @@ export function App() {
       <DocsModal
         isOpen={isDocsModalOpen}
         onClose={() => setIsDocsModalOpen(false)}
+      />
+
+      {/* Camera Scanner Modal */}
+      <CameraScanModal
+        isOpen={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCompleteScan={(file) => handleFilesSelected([file])}
+      />
+
+      {/* Webpage to PDF Modal */}
+      <WebpageToPdfModal
+        isOpen={isWebpageModalOpen}
+        onClose={() => setIsWebpageModalOpen(false)}
+        onDocumentCreated={(file) => handleFilesSelected([file])}
+      />
+
+      {/* Password Generator Modal */}
+      <PasswordGenModal
+        isOpen={isPasswordGenModalOpen}
+        onClose={() => setIsPasswordGenModalOpen(false)}
+      />
+
+      {/* Alternate Mix Modal */}
+      <AlternateMixModal
+        isOpen={isAlternateMixModalOpen}
+        onClose={() => setIsAlternateMixModalOpen(false)}
+        onComplete={(file) => handleFilesSelected([file])}
       />
     </div>
   );

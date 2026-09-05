@@ -21,7 +21,7 @@ export const AiStudioModal: React.FC<AiStudioModalProps> = ({
   onNavigateToPage,
 }) => {
   const [activeTab, setActiveTab] = useState<'insights' | 'chat' | 'flashcards'>('insights');
-  const [messages, setMessages] = useState<ChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'msg-welcome',
       sender: 'assistant',

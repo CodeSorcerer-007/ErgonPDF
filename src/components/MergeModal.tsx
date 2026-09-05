@@ -28,20 +28,7 @@ export const MergeModal: React.FC<MergeModalProps> = ({
   const [progressMsg, setProgressMsg] = useState('');
   const [mergedBlobUrl, setMergedBlobUrl] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (isOpen) {
-      setMergedBlobUrl(null);
-      setIsProcessing(false);
-      setProgressMsg('');
-      if (initialFiles.length > 0) {
-        addFiles(initialFiles);
-      }
-    }
-  }, [isOpen, initialFiles]);
-
-  if (!isOpen) return null;
-
-  const addFiles = async (files: File[]) => {
+  const addFiles = React.useCallback(async (files: File[]) => {
     const newItems: MergeItem[] = [];
     for (const f of files) {
       if (f.type === 'application/pdf' || f.name.endsWith('.pdf')) {
@@ -68,7 +55,15 @@ export const MergeModal: React.FC<MergeModalProps> = ({
       }
     }
     setItems((prev) => [...prev, ...newItems]);
-  };
+  }, []);
+
+  React.useEffect(() => {
+    if (isOpen && initialFiles.length > 0) {
+      addFiles(initialFiles);
+    }
+  }, [isOpen, initialFiles, addFiles]);
+
+  if (!isOpen) return null;
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

@@ -1,7 +1,9 @@
 import type { PDFTool } from '../types/pdf';
 
 export const TOOLS_REGISTRY: PDFTool[] = [
-  // Organize
+  // ==========================
+  // 1. Organize & Arrange
+  // ==========================
   {
     id: 'merge-pdf',
     name: 'Merge PDF',
@@ -46,8 +48,105 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     intents: ['rotate', 'turn', 'orientation', 'upside down', 'landscape', 'portrait'],
     processingMode: 'local',
   },
+  {
+    id: 'remove-pages',
+    name: 'Remove Pages',
+    shortName: 'Remove',
+    description: 'Select and instantly delete unwanted or blank pages from your document.',
+    category: 'organize',
+    iconName: 'Trash2',
+    intents: ['delete pages', 'remove page', 'cut pages', 'drop pages'],
+    processingMode: 'local',
+  },
+  {
+    id: 'extract-pages',
+    name: 'Extract Pages',
+    shortName: 'Extract Pages',
+    description: 'Select specific page ranges and save them into a new stand-alone document.',
+    category: 'organize',
+    iconName: 'FolderDown',
+    intents: ['extract pages', 'save selected', 'isolate pages', 'pull pages out'],
+    processingMode: 'local',
+  },
+  {
+    id: 'halve-pdf',
+    name: 'Halve PDF Pages',
+    shortName: 'Halve',
+    description: 'Split 2-in-1 scanned book spreads down the middle into individual single pages.',
+    category: 'organize',
+    iconName: 'Columns2',
+    intents: ['halve', 'split spread', '2-up split', 'split book', 'cut in half', 'two pages into one'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'pages-per-sheet',
+    name: 'Pages per Sheet (N-Up)',
+    shortName: 'N-Up',
+    description: 'Arrange 2, 4, 9, or 16 pages onto a single sheet to save paper & create hand-outs.',
+    category: 'organize',
+    iconName: 'Grid2X2',
+    intents: ['pages per sheet', 'n-up', '2-up', '4-up', 'grid layout', 'multiple pages per sheet', 'handouts'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'booklet-pdf',
+    name: 'Booklet Creator',
+    shortName: 'Booklet',
+    description: 'Reorder and impose pages for saddle-stitch folding and professional booklet printing.',
+    category: 'organize',
+    iconName: 'BookOpen',
+    intents: ['booklet', 'saddle stitch', 'print booklet', 'fold brochure', 'imposition'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'alternate-mix',
+    name: 'Alternate & Mix PDFs',
+    shortName: 'Mix & Interleave',
+    description: 'Interleave odd and even pages from two scanned documents in perfect alternating order.',
+    category: 'organize',
+    iconName: 'Shuffle',
+    intents: ['alternate', 'mix', 'interleave', 'duplex scan', 'odd even pages', 'combine scans'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'crop-pdf',
+    name: 'Crop PDF',
+    shortName: 'Crop',
+    description: 'Trim margins or cut out unwanted margins across all pages or selected pages.',
+    category: 'organize',
+    iconName: 'Crop',
+    intents: ['crop', 'trim margins', 'cut borders', 'crop box', 'trim white space'],
+    processingMode: 'local',
+  },
+  {
+    id: 'resize-pdf',
+    name: 'Resize Page Dimensions',
+    shortName: 'Resize',
+    description: 'Change page sizes to standard ISO A4, A3, A5, US Letter, or custom dimensions.',
+    category: 'organize',
+    iconName: 'Maximize2',
+    intents: ['resize', 'page size', 'a4', 'letter', 'change dimensions', 'scale page'],
+    processingMode: 'local',
+  },
+  {
+    id: 'remove-blank-pages',
+    name: 'Remove Blank Pages',
+    shortName: 'Clean Blanks',
+    description: 'Automatically detect and eliminate accidental empty or blank pages from scanned PDFs.',
+    category: 'organize',
+    iconName: 'Sparkles',
+    intents: ['remove blank', 'empty pages', 'delete blank', 'clean scan', 'skip empty'],
+    processingMode: 'local',
+    badge: 'Smart',
+  },
 
-  // Compress & Optimize
+  // ==========================
+  // 2. Compress & Optimize
+  // ==========================
   {
     id: 'compress-pdf',
     name: 'Compress PDF',
@@ -60,8 +159,42 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     badge: 'Popular',
     popular: true,
   },
+  {
+    id: 'flatten-pdf',
+    name: 'Flatten / Rasterize PDF',
+    shortName: 'Flatten',
+    description: 'Flatten all interactive form fields, layers, and annotations into static print-ready content.',
+    category: 'compress',
+    iconName: 'Layers',
+    intents: ['flatten', 'rasterize', 'bake annotations', 'lock form', 'flatten fields'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'repair-pdf',
+    name: 'Repair Damaged PDF',
+    shortName: 'Repair',
+    description: 'Analyze corrupted or unreadable PDF streams, rebuild XREF tables, and recover data.',
+    category: 'compress',
+    iconName: 'Wrench',
+    intents: ['repair', 'fix pdf', 'corrupted', 'damaged', 'unreadable', 'rebuild xref', 'recovery'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'web-optimize',
+    name: 'Web Optimize (Linearize)',
+    shortName: 'Web Fast',
+    description: 'Defragment and optimize document structure for fast web view and instant browser streaming.',
+    category: 'compress',
+    iconName: 'Zap',
+    intents: ['fast web view', 'linearize', 'stream pdf', 'optimize web', 'speed up loading'],
+    processingMode: 'local',
+  },
 
-  // Edit & Sign
+  // ==========================
+  // 3. Edit, Annotate & Sign
+  // ==========================
   {
     id: 'sign-pdf',
     name: 'Sign & Fill',
@@ -78,20 +211,21 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     id: 'annotate-pdf',
     name: 'Annotate & Draw',
     shortName: 'Annotate',
-    description: 'Add freehand drawing, highlighter strokes, shapes, and comments.',
+    description: 'Add freehand drawing, highlighter strokes, shapes, arrows, and sticky notes.',
     category: 'edit',
     iconName: 'Edit3',
-    intents: ['annotate', 'draw', 'highlight', 'notes', 'pen', 'markup', 'shapes'],
+    intents: ['annotate', 'draw', 'highlight', 'notes', 'pen', 'markup', 'shapes', 'arrows'],
     processingMode: 'local',
+    popular: true,
   },
   {
     id: 'watermark-pdf',
     name: 'Watermark PDF',
     shortName: 'Watermark',
-    description: 'Stamp customized text or image watermarks with precise opacity and angle.',
+    description: 'Stamp customized text or logo image watermarks with precise opacity and angle.',
     category: 'edit',
     iconName: 'Stamp',
-    intents: ['watermark', 'stamp', 'confidential', 'draft', 'copyright', 'branding'],
+    intents: ['watermark', 'stamp', 'confidential', 'draft', 'copyright', 'branding', 'logo'],
     processingMode: 'local',
     popular: true,
   },
@@ -99,19 +233,92 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     id: 'page-numbers',
     name: 'Page Numbers',
     shortName: 'Numbers',
-    description: 'Insert dynamic page numbering, headers, and footers with custom styling.',
+    description: 'Insert dynamic page numbering, headers, and footers with custom formatting & positioning.',
     category: 'edit',
     iconName: 'Hash',
-    intents: ['page numbers', 'paginate', 'headers', 'footers', 'numbering', 'number pages'],
+    intents: ['page numbers', 'paginate', 'headers', 'footers', 'numbering', 'number pages', 'roman numerals'],
     processingMode: 'local',
   },
+  {
+    id: 'overlay-pdf',
+    name: 'PDF Overlay & Underlay',
+    shortName: 'Overlay',
+    description: 'Merge letterhead, stationery backgrounds, or stamps directly over or under existing PDFs.',
+    category: 'edit',
+    iconName: 'CopyPlus',
+    intents: ['overlay', 'underlay', 'letterhead', 'stationery', 'template', 'stamp over'],
+    processingMode: 'local',
+    badge: 'New',
+  },
 
-  // Convert
+  // ==========================
+  // 4. Create & Capture
+  // ==========================
+  {
+    id: 'create-pdf',
+    name: 'Create Blank PDF',
+    shortName: 'Create Blank',
+    description: 'Start with a fresh blank page, lined notebook paper, or grid canvas for notes & designs.',
+    category: 'create',
+    iconName: 'FilePlus',
+    intents: ['create', 'new pdf', 'blank page', 'empty document', 'start fresh', 'grid paper'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'camera-scan',
+    name: 'Scan with Camera',
+    shortName: 'Scan Camera',
+    description: 'Use your webcam or phone camera to capture physical receipts, ID cards, and notes into clean PDFs.',
+    category: 'create',
+    iconName: 'Camera',
+    intents: ['camera scan', 'photo scan', 'take picture', 'capture receipt', 'scan document', 'webcam scan'],
+    processingMode: 'local',
+    badge: 'Mobile/Webcam',
+    popular: true,
+  },
+  {
+    id: 'webpage-to-pdf',
+    name: 'Webpage to PDF',
+    shortName: 'Webpage to PDF',
+    description: 'Convert web articles, URLs, or HTML snippets into formatted, readable PDF documents.',
+    category: 'create',
+    iconName: 'Globe',
+    intents: ['webpage to pdf', 'url to pdf', 'html to pdf', 'website to pdf', 'save article'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'create-form',
+    name: 'Create PDF Form',
+    shortName: 'Form Builder',
+    description: 'Design fillable interactive forms with text inputs, checkboxes, radio groups, and dropdowns.',
+    category: 'create',
+    iconName: 'CheckSquare',
+    intents: ['create form', 'fillable form', 'text fields', 'checkboxes', 'form builder', 'interactive form'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'qr-code-pdf',
+    name: 'Add QR Code',
+    shortName: 'QR Code',
+    description: 'Generate dynamic QR codes for URLs, WiFi, or text and stamp them anywhere on your document.',
+    category: 'create',
+    iconName: 'QrCode',
+    intents: ['qr code', 'barcode', 'stamp qr', 'generate qr', 'link qr'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+
+  // ==========================
+  // 5. Convert & Extract
+  // ==========================
   {
     id: 'pdf-to-images',
     name: 'PDF to Images',
     shortName: 'To Images',
-    description: 'Convert every PDF page into crystal-clear PNG, JPG, or WebP images.',
+    description: 'Convert every PDF page into crystal-clear PNG, JPG, or WebP images and download as ZIP.',
     category: 'convert',
     iconName: 'Image',
     intents: ['turn into images', 'convert to jpg', 'pdf to png', 'extract pictures', 'photo', 'render pages'],
@@ -130,17 +337,64 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     popular: true,
   },
   {
+    id: 'extract-images',
+    name: 'Extract Images from PDF',
+    shortName: 'Extract Images',
+    description: 'Detect, isolate, and download all embedded raster photos and illustrations from your PDF.',
+    category: 'convert',
+    iconName: 'Images',
+    intents: ['extract images', 'rip images', 'save pictures', 'pull photos', 'embedded images'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
     id: 'extract-text',
     name: 'Extract Text',
-    shortName: 'Extract',
-    description: 'Extract raw text, markdown content, and structural data from your document.',
+    shortName: 'Extract Text',
+    description: 'Extract raw text, markdown content, and structural paragraphs from your document.',
     category: 'convert',
     iconName: 'FileText',
     intents: ['extract text', 'copy text', 'get text', 'turn to text', 'export txt'],
     processingMode: 'local',
   },
+  {
+    id: 'pdf-to-word',
+    name: 'PDF to Word (DOCX)',
+    shortName: 'To Word',
+    description: 'Convert PDF content and formatting into an editable Microsoft Word document.',
+    category: 'convert',
+    iconName: 'FileCode',
+    intents: ['pdf to word', 'pdf to docx', 'editable word', 'convert to word'],
+    processingMode: 'local',
+    badge: 'Popular',
+    popular: true,
+  },
+  {
+    id: 'pdf-to-excel',
+    name: 'PDF to Excel / CSV',
+    shortName: 'To Excel/CSV',
+    description: 'Extract tables, columns, and numeric data into formatted CSV or spreadsheet files.',
+    category: 'convert',
+    iconName: 'Table',
+    intents: ['pdf to excel', 'pdf to csv', 'extract table', 'spreadsheet', 'data extraction'],
+    processingMode: 'local',
+    badge: 'New',
+  },
+  {
+    id: 'pdf-to-pdfa',
+    name: 'PDF to PDF/A',
+    shortName: 'To PDF/A',
+    description: 'Convert documents to ISO-standardized PDF/A format for guaranteed long-term archival preservation.',
+    category: 'convert',
+    iconName: 'Archive',
+    intents: ['pdf/a', 'pdf a', 'archival', 'iso standard', 'long term storage', 'legal archive'],
+    processingMode: 'local',
+    badge: 'New',
+  },
 
-  // Security & Privacy
+  // ==========================
+  // 6. Security & Privacy
+  // ==========================
   {
     id: 'protect-pdf',
     name: 'Protect & Encrypt',
@@ -184,8 +438,21 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     intents: ['metadata', 'sanitize', 'scrub', 'remove author', 'clean document', 'inspect info'],
     processingMode: 'local',
   },
+  {
+    id: 'password-generator',
+    name: 'Password Generator',
+    shortName: 'Password Gen',
+    description: 'Generate cryptographically strong, high-entropy passphrases to securely lock your files.',
+    category: 'security',
+    iconName: 'KeyRound',
+    intents: ['generate password', 'strong password', 'secure key', 'passphrase generator'],
+    processingMode: 'local',
+    badge: 'Utility',
+  },
 
-  // OCR & Analyze
+  // ==========================
+  // 7. OCR & Scan
+  // ==========================
   {
     id: 'ocr-pdf',
     name: 'OCR & Make Searchable',
@@ -193,24 +460,40 @@ export const TOOLS_REGISTRY: PDFTool[] = [
     description: 'Convert scanned image PDFs into fully searchable, selectable text documents locally.',
     category: 'ocr',
     iconName: 'ScanText',
-    intents: ['ocr', 'scan', 'searchable', 'recognize text', 'unsearchable', 'scanned pdf'],
+    intents: ['ocr', 'scan', 'searchable', 'recognize text', 'unsearchable', 'scanned pdf', 'tesseract'],
     processingMode: 'local',
     badge: 'AI/OCR',
     popular: true,
   },
+
+  // ==========================
+  // 8. View & Compare
+  // ==========================
   {
     id: 'compare-pdf',
     name: 'Compare Documents',
     shortName: 'Compare',
     description: 'Visually compare two PDF versions side-by-side with synchronized scrolling.',
-    category: 'organize',
+    category: 'view',
     iconName: 'GitCompare',
     intents: ['compare', 'difference', 'diff', 'side by side', 'changes', 'version comparison'],
     processingMode: 'local',
     popular: true,
   },
+  {
+    id: 'view-pdf',
+    name: 'PDF Reader & Viewer',
+    shortName: 'View PDF',
+    description: 'Fast, clutter-free document reader with bookmarks, continuous scrolling, and dark mode.',
+    category: 'view',
+    iconName: 'Eye',
+    intents: ['view pdf', 'read pdf', 'pdf reader', 'open pdf', 'fullscreen view'],
+    processingMode: 'local',
+  },
 
-  // AI Document Intelligence
+  // ==========================
+  // 9. AI Document Studio
+  // ==========================
   {
     id: 'ai-chat',
     name: 'AI Document Studio',
@@ -229,9 +512,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
   all: 'All Tools',
   organize: 'Organize',
   edit: 'Edit & Sign',
+  create: 'Create & Capture',
   convert: 'Convert',
-  compress: 'Compress',
+  compress: 'Compress & Repair',
   security: 'Security & Privacy',
   ocr: 'OCR & Scan',
+  view: 'View & Compare',
   ai: 'AI Studio',
 };
