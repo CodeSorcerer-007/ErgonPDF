@@ -16,15 +16,22 @@ RUN npm run build
 # Production Stage
 FROM nginx:alpine AS runner
 
+# Create pid directory and set ownership for unprivileged execution
+RUN touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /etc/nginx/conf.d
+
 # Remove default nginx html
 RUN rm -rf /usr/share/nginx/html/*
 
 # Copy built static assets from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Copy custom nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
+
+USER nginx
 
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+

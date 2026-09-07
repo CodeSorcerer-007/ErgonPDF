@@ -205,9 +205,21 @@ async function runSelfTests() {
     if (unlocked.getPageCount() !== 2) throw new Error('Expected 2 pages preserved in encrypted doc');
   });
 
+  // 20. Overlay & Underlay Document
+  await test('overlayDocument applies overlay and underlay templates', async () => {
+    const templateBytes = await PDFEngineService.createBlankPDF('blank', 1);
+    const templateBuffer = templateBytes.buffer.slice(templateBytes.byteOffset, templateBytes.byteOffset + templateBytes.byteLength);
+
+    const overlaid = await PDFEngineService.overlayDocument(buffer, templateBuffer, false);
+    if ((await getPageCount(overlaid)) !== 2) throw new Error('Expected 2 pages in overlaid PDF');
+
+    const underlaid = await PDFEngineService.overlayDocument(buffer, templateBuffer, true);
+    if ((await getPageCount(underlaid)) !== 2) throw new Error('Expected 2 pages in underlaid PDF');
+  });
+
   console.log(`\n📊 Test Results: ${passed}/${total} Passed (${Math.round((passed / total) * 100)}%)`);
   if (passed === total) {
-    console.log('🎉 ALL 19 ENGINE FEATURES VERIFIED WORKING 100%!');
+    console.log(`🎉 ALL ${total} ENGINE FEATURES VERIFIED WORKING 100%!`);
   } else {
     process.exit(1);
   }

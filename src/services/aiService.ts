@@ -47,20 +47,49 @@ export interface ChatMessage {
   timestamp: number;
 }
 
+/**
+ * Service providing client-side heuristic document analysis, query answering, and flashcard generation.
+ * Operates completely in-memory with zero network requests.
+ */
 export class AIService {
   /**
    * Performs zero-network local heuristic document analysis and classification.
+   *
+   * @param documentText - Plain extracted text of the document.
+   * @param _pageTexts - Optional per-page text breakdown.
+   * @returns Complete document analysis containing category, confidence, summary, key points, action items, and entities.
    */
   static analyzeDocumentLocally(
     documentText: string, 
     _pageTexts?: { pageNumber: number; text: string }[]
   ): DocumentAnalysis {
-    const lower = documentText.toLowerCase();
     const words = documentText.trim().split(/\s+/).filter(Boolean);
     const wordCount = words.length;
-    const readingTime = Math.max(1, Math.round(wordCount / 200));
+    const estimatedReadingTimeMinutes = Math.max(1, Math.round(wordCount / 200));
 
-    // Robust Multi-Signal Heuristic Classification
+    const { type, confidence } = AIService.classifyDocumentType(documentText);
+    const { emails, phones, importantDates, financialEntities } = AIService.extractEntities(documentText);
+    const { summary, keyPoints, actionItems } = AIService.extractSummariesAndActions(documentText);
+
+    return {
+      type,
+      confidence,
+      wordCount,
+      estimatedReadingTimeMinutes,
+      summary,
+      keyPoints,
+      actionItems,
+      importantDates,
+      financialEntities,
+      contactInfo: { emails, phones },
+    };
+  }
+
+  /**
+   * Multi-signal heuristic classification for document types
+   */
+  private static classifyDocumentType(documentText: string): { type: DocumentType; confidence: number } {
+    const lower = documentText.toLowerCase();
     const scores: Record<DocumentType, number> = {
       contract: 0,
       invoice: 0,
@@ -71,7 +100,7 @@ export class AIService {
       general: 0,
     };
 
-    // Contract indicators (High-value phrases)
+    // Contract indicators
     if (lower.includes('master services agreement') || lower.includes('service agreement')) scores.contract += 15;
     if (lower.includes('agreement') || lower.includes('contract')) scores.contract += 6;
     if (lower.includes('in witness whereof')) scores.contract += 10;
@@ -116,8 +145,13 @@ export class AIService {
 
     const type: DocumentType = maxScore >= 4 ? bestType : 'general';
     const confidence = maxScore >= 12 ? 0.95 : maxScore >= 6 ? 0.88 : 0.72;
+    return { type, confidence };
+  }
 
-    // Extract Entities using RegEx
+  /**
+   * Extracts structured entities (emails, phone numbers, dates, monetary values) via regex
+   */
+  private static extractEntities(documentText: string) {
     const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi;
     const emails = Array.from(new Set(documentText.match(emailRegex) || [])).slice(0, 10);
 
@@ -130,11 +164,17 @@ export class AIService {
     const moneyRegex = /([$€£¥₹]\s?[\d,]+(?:\.\d{2})?|\b[\d,]+(?:\.\d{2})?\s?(?:USD|EUR|GBP|INR)\b)/gi;
     const financialEntities = Array.from(new Set(documentText.match(moneyRegex) || [])).slice(0, 10);
 
-    // Heuristic Summarization & Key Points
+    return { emails, phones, importantDates, financialEntities };
+  }
+
+  /**
+   * Generates heuristic summaries, key points, and action items
+   */
+  private static extractSummariesAndActions(documentText: string) {
     const sentences = documentText
       .split(/[.!?]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 25 && s.length < 240);
+      .map((sentence) => sentence.trim())
+      .filter((sentence) => sentence.length > 25 && sentence.length < 240);
 
     const summarySentences = sentences.slice(0, 3);
     const summary = summarySentences.length > 0
@@ -142,15 +182,18 @@ export class AIService {
       : 'Document content analyzed. Use the interactive queries below to extract specific findings.';
 
     const keyPoints = sentences
-      .filter((s) => 
-        s.toLowerCase().includes('important') || 
-        s.toLowerCase().includes('key') || 
-        s.toLowerCase().includes('shall') || 
-        s.toLowerCase().includes('requires') ||
-        s.toLowerCase().includes('total') ||
-        s.toLowerCase().includes('conclude') ||
-        s.toLowerCase().includes('note')
-      )
+      .filter((sentence) => {
+        const lowerSentence = sentence.toLowerCase();
+        return (
+          lowerSentence.includes('important') ||
+          lowerSentence.includes('key') ||
+          lowerSentence.includes('shall') ||
+          lowerSentence.includes('requires') ||
+          lowerSentence.includes('total') ||
+          lowerSentence.includes('conclude') ||
+          lowerSentence.includes('note')
+        );
+      })
       .slice(0, 5);
 
     if (keyPoints.length < 3 && sentences.length >= 3) {
@@ -158,55 +201,55 @@ export class AIService {
     }
 
     const actionItems = sentences
-      .filter((s) => 
-        s.toLowerCase().includes('must') || 
-        s.toLowerCase().includes('action') || 
-        s.toLowerCase().includes('submit') || 
-        s.toLowerCase().includes('due by') ||
-        s.toLowerCase().includes('required to') ||
-        s.toLowerCase().includes('payment')
-      )
+      .filter((sentence) => {
+        const lowerSentence = sentence.toLowerCase();
+        return (
+          lowerSentence.includes('must') ||
+          lowerSentence.includes('action') ||
+          lowerSentence.includes('submit') ||
+          lowerSentence.includes('due by') ||
+          lowerSentence.includes('required to') ||
+          lowerSentence.includes('payment')
+        );
+      })
       .slice(0, 5);
 
     return {
-      type,
-      confidence,
-      wordCount,
-      estimatedReadingTimeMinutes: readingTime,
       summary,
       keyPoints: keyPoints.slice(0, 5),
       actionItems: actionItems.length > 0 ? actionItems : ['Review document details and archive.'],
-      importantDates,
-      financialEntities,
-      contactInfo: { emails, phones },
     };
   }
 
   /**
    * Responds to user chat queries about the document, finding relevant pages and generating answers.
+   *
+   * @param query - The user's question or search query.
+   * @param pageTexts - Array of per-page text content with 1-based page numbers.
+   * @returns Object containing the generated answer text and matched page references.
    */
   static answerQuery(
     query: string, 
     pageTexts: { pageNumber: number; text: string }[]
   ): { answer: string; pageReferences: number[] } {
-    const qLower = query.toLowerCase();
+    const normalizedQuery = query.toLowerCase();
     const matchedPages: { pageNumber: number; score: number; snippet: string }[] = [];
 
-    const queryTerms = qLower.split(/\s+/).filter((w) => w.length > 2);
+    const queryTerms = normalizedQuery.split(/\s+/).filter((word) => word.length > 2);
 
-    pageTexts.forEach((p) => {
-      const pTextLower = p.text.toLowerCase();
+    pageTexts.forEach((pageItem) => {
+      const pageTextLower = pageItem.text.toLowerCase();
       let score = 0;
       queryTerms.forEach((term) => {
-        if (pTextLower.includes(term)) {
+        if (pageTextLower.includes(term)) {
           score += 1;
         }
       });
       if (score > 0) {
         matchedPages.push({
-          pageNumber: p.pageNumber,
+          pageNumber: pageItem.pageNumber,
           score,
-          snippet: p.text.slice(0, 200),
+          snippet: pageItem.text.slice(0, 200),
         });
       }
     });
@@ -220,7 +263,7 @@ export class AIService {
       };
     }
 
-    const topRefs = matchedPages.slice(0, 3).map((m) => m.pageNumber);
+    const topRefs = matchedPages.slice(0, 3).map((match) => match.pageNumber);
     const mainSnippet = matchedPages[0].snippet.replace(/\s+/g, ' ');
 
     let answer = `Based on the document context on **Page ${matchedPages[0].pageNumber}**:\n\n> "…${mainSnippet}…"\n\n`;
@@ -236,22 +279,25 @@ export class AIService {
 
   /**
    * Generates interactive flashcards for study notes from document text.
+   *
+   * @param pageTexts - Array of per-page text content with 1-based page numbers.
+   * @returns Up to 8 study flashcards containing questions, answers, and page citations.
    */
   static generateFlashcards(
     pageTexts: { pageNumber: number; text: string }[]
   ): Flashcard[] {
     const flashcards: Flashcard[] = [];
-    pageTexts.forEach((p) => {
-      const sentences = p.text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 30);
-      sentences.forEach((s) => {
-        if (s.includes(' is ') || s.includes(' are ') || s.includes(' defined as ')) {
-          const parts = s.split(/ is | are | defined as /);
+    pageTexts.forEach((pageItem) => {
+      const sentences = pageItem.text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 30);
+      sentences.forEach((sentence) => {
+        if (sentence.includes(' is ') || sentence.includes(' are ') || sentence.includes(' defined as ')) {
+          const parts = sentence.split(/ is | are | defined as /);
           if (parts.length === 2 && parts[0].length < 40 && parts[1].length < 160) {
             flashcards.push({
               id: `fc-${Math.random().toString(36).substring(2, 9)}`,
               question: `What is ${parts[0]}?`,
               answer: parts[1],
-              pageReference: p.pageNumber,
+              pageReference: pageItem.pageNumber,
             });
           }
         }

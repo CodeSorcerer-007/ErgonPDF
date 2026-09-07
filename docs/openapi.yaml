@@ -1,94 +1,1019 @@
 openapi: 3.0.3
 info:
-  title: ErgonPDF Headless API Specification
-  description: API specifications for ErgonPDF client-side and self-hosted server processing engine.
-  version: 1.0.0
+  title: ErgonPDF Headless & Client Engine API Specification
+  description: |
+    Complete API specification for the ErgonPDF processing engine.
+    
+    ErgonPDF is an open-source, privacy-first document platform. All operations execute locally in-browser via WebAssembly, Web Workers, and `pdf-lib`/`pdfjs-dist`, and can also be exposed as headless microservices in Docker/self-hosted environments.
+    
+    ### Key Highlights
+    - **100% Client-Side Privacy**: Zero file transmission to third-party servers.
+    - **No Authentication Required**: Default public access for client runtime; optional Bearer/API token for enterprise self-hosted gateways.
+    - **Multi-Format Input/Output**: Supports PDF, PNG, JPEG, WebP, Word (`.doc`), CSV, and ZIP archives.
+  version: 1.1.0
+  contact:
+    name: ErgonPDF Open Source Project
+    url: https://github.com/CodeSorcerer-007/ErgonPDF
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
+
 servers:
   - url: http://localhost:8080/api/v1
-    description: Local self-hosted instance
+    description: Self-hosted Docker container instance
+  - url: http://localhost:5173/api/v1
+    description: Local development server
+  - url: client://engine
+    description: In-browser WebAssembly/WebWorker direct client engine
+
+security:
+  - []
+  - bearerAuth: []
+  - apiKeyAuth: []
 
 paths:
-  /pdf/merge:
+  # =========================================================================
+  # System & Health
+  # =========================================================================
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check and engine status
+      description: Returns operational readiness of the PDF processing and OCR engines.
+      operationId: getHealthStatus
+      security: []
+      responses:
+        '200':
+          description: Engine is healthy and ready to process files.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  # =========================================================================
+  # Document Inspection & Extraction
+  # =========================================================================
+  /pdf/inspect:
     post:
-      summary: Merge multiple PDF documents
-      description: Combines multiple PDF files in specified order into a single PDF.
+      tags:
+        - Inspection & Text
+      summary: Inspect PDF structure and metadata
+      description: Parses page count, page dimensions, author/producer metadata, and lightweight thumbnails.
+      operationId: inspectDocument
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF document to inspect.
+      responses:
+        '200':
+          description: PDF metadata and page inventory.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InspectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /pdf/extract-text:
+    post:
+      tags:
+        - Inspection & Text
+      summary: Extract plain text from PDF
+      description: Extracts raw selectable text across all pages with per-page index mapping.
+      operationId: extractText
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Extracted text and per-page content.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractTextResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pdf/tables-to-csv:
+    post:
+      tags:
+        - Inspection & Text
+      summary: Extract tables to CSV
+      description: Parses aligned text columns and tabulations into RFC 4180 CSV format.
+      operationId: extractTablesToCSV
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Generated CSV file.
+          content:
+            text/csv:
+              schema:
+                type: string
+                example: "\"Page 1\"\n\"Invoice #\",\"Date\",\"Total\"\n\"INV-2026-001\",\"2026-09-07\",\"$1,250.00\"\n"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # =========================================================================
+  # Organization & Assembly
+  # =========================================================================
+  /pdf/merge:
+    post:
+      tags:
+        - Organization & Transform
+      summary: Merge multiple PDF documents
+      description: Sequentially concatenates an array of PDF files into a single unified document.
+      operationId: mergeDocuments
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
               properties:
                 files:
                   type: array
                   items:
                     type: string
                     format: binary
+                  description: Array of PDF files in desired merge sequence.
       responses:
         '200':
-          description: Merged PDF document
+          description: Merged PDF document.
           content:
             application/pdf:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
-  /pdf/compress:
+  /pdf/split:
     post:
-      summary: Compress PDF file
-      description: Downsamples embedded images and strips redundant objects.
+      tags:
+        - Organization & Transform
+      summary: Split PDF into page ranges
+      description: Extracts defined page ranges into separate documents packaged in a ZIP archive or single PDF.
+      operationId: splitDocument
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - file
+                - ranges
+              properties:
+                file:
+                  type: string
+                  format: binary
+                ranges:
+                  type: string
+                  description: JSON-stringified array of ranges `[{"name": "part1", "startPage": 1, "endPage": 3}]`.
+      responses:
+        '200':
+          description: Extracted PDF or ZIP archive containing split parts.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+            application/zip:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pdf/compress:
+    post:
+      tags:
+        - Organization & Transform
+      summary: Adaptive PDF compression
+      description: Compresses PDF via object stream defragmentation and optional image downsampling with size safeguard.
+      operationId: compressDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
               properties:
                 file:
                   type: string
                   format: binary
                 level:
                   type: string
-                  enum: [max, balanced, quality]
+                  enum: [lossless, balanced, max, grayscale]
                   default: balanced
+                removeMetadata:
+                  type: boolean
+                  default: false
       responses:
         '200':
-          description: Compressed PDF document
+          description: Compressed PDF document.
+          headers:
+            X-Original-Size:
+              schema:
+                type: integer
+              description: Original document byte size.
+            X-Compressed-Size:
+              schema:
+                type: integer
+              description: Compressed document byte size.
+            X-Savings-Percent:
+              schema:
+                type: integer
+              description: Percentage of size reduced.
           content:
             application/pdf:
               schema:
                 type: string
                 format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
-  /pdf/ocr:
+  /pdf/repair:
     post:
-      summary: Extract searchable text layer via OCR
-      description: Performs optical character recognition on scanned pages.
+      tags:
+        - Organization & Transform
+      summary: Repair corrupted PDF
+      description: Reconstructs damaged cross-reference tables and recovers uncorrupted page streams.
+      operationId: repairDocument
       requestBody:
         required: true
         content:
           multipart/form-data:
             schema:
               type: object
+              required:
+                - file
               properties:
                 file:
                   type: string
                   format: binary
+      responses:
+        '200':
+          description: Reconstructed valid PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pdf/web-optimize:
+    post:
+      tags:
+        - Organization & Transform
+      summary: Linearize / Fast Web View optimization
+      description: Reorders internal object streams for instant progressive rendering in web browsers.
+      operationId: webOptimize
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Linearized PDF document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/pdfa:
+    post:
+      tags:
+        - Organization & Transform
+      summary: Convert to PDF/A archival format
+      description: Injects ISO 19005-1 compliant PDF/A-1b metadata and color spaces for long-term preservation.
+      operationId: convertToPdfA
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: PDF/A compliant document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # =========================================================================
+  # Layout & Imposition
+  # =========================================================================
+  /pdf/halve:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Split 2-in-1 pages
+      description: Bisects two-page scanned spreads down the center into separate single pages.
+      operationId: halvePages
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Document with halved individual pages.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/nup:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Multi-page sheet imposition (N-Up)
+      description: Arranges 2, 4, 9, or 16 pages per sheet for compact printing and handouts.
+      operationId: nUpImposition
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                pagesPerSheet:
+                  type: integer
+                  enum: [2, 4, 9, 16]
+                  default: 2
+                orientation:
+                  type: string
+                  enum: [auto, portrait, landscape]
+                  default: auto
+                addBorder:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Imposed N-Up document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/booklet:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Create saddle-stitch booklet
+      description: Organizes pages for 2-page duplex folding and stapling.
+      operationId: createBooklet
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Booklet imposition PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/crop:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Crop page margins
+      description: Trims top, bottom, left, and right margins non-destructively.
+      operationId: cropDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                topPercent:
+                  type: number
+                  default: 0
+                bottomPercent:
+                  type: number
+                  default: 0
+                leftPercent:
+                  type: number
+                  default: 0
+                rightPercent:
+                  type: number
+                  default: 0
+      responses:
+        '200':
+          description: Cropped PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/resize:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Standardize page dimensions
+      description: Rescales document pages to target standards (A4, A3, Letter, Legal).
+      operationId: resizeDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                targetSize:
+                  type: string
+                  enum: [A4, A3, A5, Letter, Legal]
+                  default: A4
+                orientation:
+                  type: string
+                  enum: [portrait, landscape]
+                  default: portrait
+      responses:
+        '200':
+          description: Resized PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/alternate-mix:
+    post:
+      tags:
+        - Layout & Imposition
+      summary: Interleave two PDFs
+      description: Alternates pages from document A and document B (e.g. duplex scanner front and back feeds).
+      operationId: alternateMix
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - fileA
+                - fileB
+              properties:
+                fileA:
+                  type: string
+                  format: binary
+                fileB:
+                  type: string
+                  format: binary
+                reverseB:
+                  type: boolean
+                  default: false
+      responses:
+        '200':
+          description: Interleaved PDF document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # =========================================================================
+  # Stamping & Forms
+  # =========================================================================
+  /pdf/watermark:
+    post:
+      tags:
+        - Stamping & Forms
+      summary: Add text watermark
+      description: Stamps a customizable diagonal or horizontal text watermark across pages.
+      operationId: addWatermark
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - text
+              properties:
+                file:
+                  type: string
+                  format: binary
+                text:
+                  type: string
+                  example: CONFIDENTIAL
+                fontSize:
+                  type: number
+                  default: 48
+                opacity:
+                  type: number
+                  default: 0.3
+                rotation:
+                  type: number
+                  default: 45
+                color:
+                  type: string
+                  enum: [gray, red, blue, green]
+                  default: gray
+      responses:
+        '200':
+          description: Watermarked PDF document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /pdf/page-numbers:
+    post:
+      tags:
+        - Stamping & Forms
+      summary: Add page numbering
+      description: Stamps formatted headers or footers ('Page 1 of n', '- 1 -', etc.) onto pages.
+      operationId: addPageNumbers
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                format:
+                  type: string
+                  enum: ['1', 'Page 1', 'Page 1 of n', '- 1 -']
+                  default: 'Page 1 of n'
+                position:
+                  type: string
+                  enum: [bottom-center, bottom-right, bottom-left, top-center, top-right]
+                  default: bottom-center
+                startNumber:
+                  type: integer
+                  default: 1
+                fontSize:
+                  type: number
+                  default: 11
+      responses:
+        '200':
+          description: Numbered PDF document.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /pdf/qr-code:
+    post:
+      tags:
+        - Stamping & Forms
+      summary: Stamp QR code onto page
+      description: Dynamically creates and renders an in-memory QR code onto a document page.
+      operationId: stampQRCode
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - qrText
+              properties:
+                file:
+                  type: string
+                  format: binary
+                qrText:
+                  type: string
+                  example: https://ergonpdf.local/verify/123
+                pageNumber:
+                  type: integer
+                  default: 1
+                position:
+                  type: string
+                  enum: [bottom-right, bottom-left, top-right, top-left, center]
+                  default: bottom-right
+                sizePercent:
+                  type: number
+                  default: 15
+      responses:
+        '200':
+          description: Document stamped with QR code.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # =========================================================================
+  # Security & Encryption
+  # =========================================================================
+  /pdf/encrypt:
+    post:
+      tags:
+        - Security & Protection
+      summary: Encrypt PDF with AES-256
+      description: Locks the document with user/owner password protection using standard AES-256 encryption.
+      operationId: encryptDocument
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+                - userPassword
+              properties:
+                file:
+                  type: string
+                  format: binary
+                userPassword:
+                  type: string
+                  format: password
+                  description: Password required to view document.
+                ownerPassword:
+                  type: string
+                  format: password
+                  description: Administrative password to modify permissions.
+      responses:
+        '200':
+          description: Password-protected AES-256 encrypted PDF.
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # =========================================================================
+  # OCR & AI Intelligence
+  # =========================================================================
+  /ocr/recognize:
+    post:
+      tags:
+        - OCR & AI
+      summary: Perform OCR on image or scanned page
+      description: Extracts searchable text and confidence metrics locally via Tesseract Web Worker.
+      operationId: recognizeImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Scanned page image (PNG or JPEG).
                 language:
                   type: string
                   default: eng
+                  description: Tesseract language model code.
       responses:
         '200':
-          description: Searchable text result
+          description: OCR recognition output.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OCRResponse'
+
+  /ai/analyze:
+    post:
+      tags:
+        - OCR & AI
+      summary: Heuristic document classification and analysis
+      description: Analyzes text in-memory to detect document type, entities (currency, dates, emails), key highlights, and action items.
+      operationId: analyzeDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                  description: Extracted text content of the document.
+      responses:
+        '200':
+          description: Document intelligence breakdown.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentAnalysis'
+
+  /ai/query:
+    post:
+      tags:
+        - OCR & AI
+      summary: Semantic question answering with citations
+      description: Answers user queries with cited page numbers and exact quote snippets.
+      operationId: queryDocument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+                - pageTexts
+              properties:
+                query:
+                  type: string
+                  example: What is the termination fee?
+                pageTexts:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - pageNumber
+                      - text
+                    properties:
+                      pageNumber:
+                        type: integer
+                      text:
+                        type: string
+      responses:
+        '200':
+          description: Answer and page references.
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  text:
+                  answer:
                     type: string
-                  confidence:
-                    type: number
+                  pageReferences:
+                    type: array
+                    items:
+                      type: integer
+
+# =========================================================================
+# Components & Schemas
+# =========================================================================
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Optional bearer token for enterprise gateway reverse proxies.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Optional API key for programmatic automation gateways.
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or missing required fields.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: PDF file is corrupted or cannot be parsed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: 1.1.0
+        mode:
+          type: string
+          example: client-wasm
+        timestamp:
+          type: integer
+          example: 1757235000000
+
+    InspectResponse:
+      type: object
+      properties:
+        pageCount:
+          type: integer
+          example: 12
+        metadata:
+          type: object
+          properties:
+            title:
+              type: string
+              example: Master Services Agreement
+            author:
+              type: string
+              example: Legal Dept
+            creator:
+              type: string
+              example: ErgonPDF
+            creationDate:
+              type: string
+              example: D:20260907120000Z
+        pages:
+          type: array
+          items:
+            type: object
+            properties:
+              pageNumber:
+                type: integer
+                example: 1
+              width:
+                type: number
+                example: 595.28
+              height:
+                type: number
+                example: 841.89
+              thumbnailUrl:
+                type: string
+                example: data:image/jpeg;base64,...
+
+    ExtractTextResponse:
+      type: object
+      properties:
+        text:
+          type: string
+        pages:
+          type: array
+          items:
+            type: object
+            properties:
+              pageNumber:
+                type: integer
+              text:
+                type: string
+
+    OCRResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          example: INVOICE #1024 ...
+        confidence:
+          type: number
+          example: 94.8
+
+    DocumentAnalysis:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [contract, invoice, academic_paper, resume, form, report, general]
+          example: contract
+        confidence:
+          type: number
+          example: 0.95
+        wordCount:
+          type: integer
+          example: 1420
+        estimatedReadingTimeMinutes:
+          type: integer
+          example: 7
+        summary:
+          type: string
+        keyPoints:
+          type: array
+          items:
+            type: string
+        actionItems:
+          type: array
+          items:
+            type: string
+        importantDates:
+          type: array
+          items:
+            type: string
+        financialEntities:
+          type: array
+          items:
+            type: string
+        contactInfo:
+          type: object
+          properties:
+            emails:
+              type: array
+              items:
+                type: string
+            phones:
+              type: array
+              items:
+                type: string
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          example: Invalid PDF structure or missing file buffer.
+        code:
+          type: string
+          example: PDF_PARSE_ERROR
