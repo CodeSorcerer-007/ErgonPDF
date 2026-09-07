@@ -26,8 +26,12 @@ if (typeof window !== 'undefined') {
 export class PDFEngineService {
   /**
    * Resilient helper to retrieve PDF.js loading task in both browser and Node/SSR environments
+   * 
+   * @param data - Raw PDF file ArrayBuffer.
+   * @returns PDF.js loading task.
+   * @throws Error if PDF.js getDocument is unavailable.
    */
-  static getPdfLoadingTask(data: ArrayBuffer) {
+  private static getPdfLoadingTask(data: ArrayBuffer) {
     const fn = (pdfjsLib as any).getDocument || (pdfjsLib as any).default?.getDocument || (pdfjsLib as any).default;
     if (typeof fn === 'function') {
       return fn({ data: data.slice(0) });
@@ -37,6 +41,10 @@ export class PDFEngineService {
 
   /**
    * Loads a PDF document and extracts metadata, page count, and page thumbnails.
+   *
+   * @param data - Raw PDF file ArrayBuffer.
+   * @returns Detailed document metadata, total page count, and lightweight thumbnail previews.
+   * @throws Error if the buffer cannot be parsed or lacks a valid PDF header.
    */
   static async inspectDocument(data: ArrayBuffer): Promise<{
     pageCount: number;
@@ -110,7 +118,12 @@ export class PDFEngineService {
   }
 
   /**
-   * Renders a specific page onto an existing canvas element at given zoom scale.
+   * Renders a specific page onto an existing HTML canvas element at a given zoom scale.
+   *
+   * @param data - PDF document ArrayBuffer.
+   * @param pageNumber - 1-based index of the page to render.
+   * @param canvas - Target HTML5 Canvas element.
+   * @param scale - Rendering zoom level multiplier (defaults to 1.0).
    */
   static async renderPageToCanvas(
     data: ArrayBuffer, 
@@ -120,6 +133,9 @@ export class PDFEngineService {
   ): Promise<void> {
     const loadingTask = PDFEngineService.getPdfLoadingTask(data);
     const pdfDoc = await loadingTask.promise;
+    if (pageNumber < 1 || pageNumber > pdfDoc.numPages) {
+      throw new Error(`Invalid page number ${pageNumber}. Document has ${pdfDoc.numPages} page(s).`);
+    }
     const page = await pdfDoc.getPage(pageNumber);
 
     const pixelRatio = window.devicePixelRatio || 1;
@@ -142,7 +158,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Merges multiple PDF ArrayBuffers into a single unified PDF.
+   * Merges multiple PDF ArrayBuffers into a single unified PDF file.
+   *
+   * @param buffers - Array of PDF ArrayBuffers to combine in chronological order.
+   * @returns Uint8Array containing the merged PDF document.
+   * @throws Error if the buffers array is empty.
    */
   static async mergeDocuments(buffers: ArrayBuffer[]): Promise<Uint8Array> {
     if (buffers.length === 0) throw new Error('No PDF documents provided for merge.');
@@ -159,6 +179,11 @@ export class PDFEngineService {
 
   /**
    * Reorders, rotates, deletes, or duplicates pages based on a page configuration array.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param pageConfigs - Array specifying page index, rotation delta (in degrees), and optional deletion flag.
+   * @returns Uint8Array of the restructured PDF document.
+   * @throws Error if all pages are deleted resulting in an empty document.
    */
   static async reorderAndTransformPages(
     buffer: ArrayBuffer,
@@ -190,7 +215,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Splits a PDF into page ranges.
+   * Splits a PDF into one or more page ranges, returning individual PDF byte arrays.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param ranges - List of page ranges to extract, each with a custom name and 1-based start/end pages.
+   * @returns Array of objects containing range names and compiled PDF byte arrays.
    */
   static async splitDocument(
     buffer: ArrayBuffer,
@@ -198,10 +227,20 @@ export class PDFEngineService {
   ): Promise<{ name: string; data: Uint8Array }[]> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const totalPages = srcDoc.getPageCount();
+    if (totalPages === 0) {
+      throw new Error('Cannot split an empty document.');
+    }
     const results: { name: string; data: Uint8Array }[] = [];
 
     for (const range of ranges) {
-      const newDoc = await PDFDocument.create();
+      // Validate that range overlaps with valid document page bounds
+      if (range.startPage > totalPages || range.endPage < 1 || range.startPage > range.endPage) {
+        throw new Error(
+          `Range "${range.name}" (${range.startPage}–${range.endPage}) contains no valid pages for document with ${totalPages} pages.`
+        );
+      }
+
+      // Clip bounds to existing pages in document
       const start = Math.max(0, range.startPage - 1);
       const end = Math.min(totalPages - 1, range.endPage - 1);
 
@@ -210,6 +249,13 @@ export class PDFEngineService {
         indices.push(i);
       }
 
+      if (indices.length === 0) {
+        throw new Error(
+          `Range "${range.name}" (${range.startPage}–${range.endPage}) contains no valid pages.`
+        );
+      }
+
+      const newDoc = await PDFDocument.create();
       const pages = await newDoc.copyPages(srcDoc, indices);
       pages.forEach((p) => newDoc.addPage(p));
       const data = await newDoc.save();
@@ -225,15 +271,12 @@ export class PDFEngineService {
    * - Balanced / Max / Grayscale: Downsamples images to 144 DPI or 96 DPI, with optional Grayscale chroma removal.
    * - Size Safeguard: Compares sizes. If rasterization bloats the file (common for text PDFs), automatically falls back to lossless optimization!
    */
-  static async compressDocument(
-    buffer: ArrayBuffer,
-    settings: CompressionSettings
-  ): Promise<{ data: Uint8Array; originalSize: number; compressedSize: number; savingsPercent: number }> {
-    const originalSize = buffer.byteLength;
-
-    // 1. Lossless pass (object streams + metadata scrubbing)
+  /**
+   * Helper: Performs lossless object stream and metadata optimization pass.
+   */
+  private static async compressLossless(buffer: ArrayBuffer, removeMetadata = false): Promise<Uint8Array> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    if (settings.removeMetadata) {
+    if (removeMetadata) {
       srcDoc.setTitle('');
       srcDoc.setAuthor('');
       srcDoc.setSubject('');
@@ -241,7 +284,95 @@ export class PDFEngineService {
       srcDoc.setProducer('ErgonPDF Fast Engine');
       srcDoc.setCreator('ErgonPDF Local Workspace');
     }
-    const losslessData = await srcDoc.save({ useObjectStreams: true, addDefaultPage: false });
+    return await srcDoc.save({ useObjectStreams: true, addDefaultPage: false });
+  }
+
+  /**
+   * Helper: Performs raster downsampling of document pages onto canvas.
+   */
+  private static async downsampleRasterPages(buffer: ArrayBuffer, settings: CompressionSettings): Promise<Uint8Array> {
+    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
+    const pdfDoc = await loadingTask.promise;
+    const pageCount = pdfDoc.numPages;
+    const newDoc = await PDFDocument.create();
+
+    const dpi = settings.dpi || (settings.level === 'max' ? 96 : settings.level === 'grayscale' ? 120 : 150);
+    const scaleFactor = Math.min(2.0, Math.max(0.8, dpi / 72));
+    const quality = settings.imageQuality || (settings.level === 'max' ? 0.45 : settings.level === 'grayscale' ? 0.60 : 0.70);
+    const isGrayscale = settings.grayscale || settings.level === 'grayscale';
+
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const origViewport = page.getViewport({ scale: 1.0 });
+      const renderViewport = page.getViewport({ scale: scaleFactor });
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = renderViewport.width;
+      canvas.height = renderViewport.height;
+
+      if (ctx) {
+        await page.render({
+          canvasContext: ctx,
+          viewport: renderViewport,
+        }).promise;
+
+        if (isGrayscale) {
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+          for (let pixel = 0; pixel < data.length; pixel += 4) {
+            const gray = (data[pixel] * 299 + data[pixel + 1] * 587 + data[pixel + 2] * 114) >> 10;
+            data[pixel] = gray;
+            data[pixel + 1] = gray;
+            data[pixel + 2] = gray;
+          }
+          ctx.putImageData(imgData, 0, 0);
+        }
+
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b || new Blob()), 'image/jpeg', quality);
+        });
+        const imgBytes = await blob.arrayBuffer();
+        const embeddedImg = await newDoc.embedJpg(imgBytes);
+
+        const newPage = newDoc.addPage([origViewport.width, origViewport.height]);
+        newPage.drawImage(embeddedImg, {
+          x: 0,
+          y: 0,
+          width: origViewport.width,
+          height: origViewport.height,
+        });
+      }
+    }
+
+    if (settings.removeMetadata) {
+      newDoc.setTitle('');
+      newDoc.setAuthor('');
+      newDoc.setSubject('');
+      newDoc.setKeywords([]);
+      newDoc.setProducer('ErgonPDF Fast Engine');
+      newDoc.setCreator('ErgonPDF Local Workspace');
+    }
+
+    return await newDoc.save({ useObjectStreams: true, addDefaultPage: false });
+  }
+
+  /**
+   * Compresses a PDF using adaptive lossless stream compaction or visual raster downsampling.
+   * Includes an automatic size safeguard to fall back to lossless optimization if rasterization bloats the file.
+   *
+   * @param buffer - Raw input PDF ArrayBuffer.
+   * @param settings - Compression configuration specifying level ('lossless', 'balanced', 'max', 'grayscale') and optional metadata removal.
+   * @returns Object containing compressed binary data, initial size, compressed size, and percentage saved.
+   */
+  static async compressDocument(
+    buffer: ArrayBuffer,
+    settings: CompressionSettings
+  ): Promise<{ data: Uint8Array; originalSize: number; compressedSize: number; savingsPercent: number }> {
+    const originalSize = buffer.byteLength;
+
+    // 1. Lossless pass (object streams + metadata scrubbing)
+    const losslessData = await PDFEngineService.compressLossless(buffer, !!settings.removeMetadata);
 
     // If lossless mode requested, return right away
     if (settings.level === 'lossless') {
@@ -251,72 +382,9 @@ export class PDFEngineService {
       return { data: finalData, originalSize, compressedSize, savingsPercent };
     }
 
-    // 2. Visual / Raster downsampling pass
+    // 2. Visual / Raster downsampling pass with safe fallback
     try {
-      const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
-      const pdfDoc = await loadingTask.promise;
-      const pageCount = pdfDoc.numPages;
-      const newDoc = await PDFDocument.create();
-
-      const dpi = settings.dpi || (settings.level === 'max' ? 96 : settings.level === 'grayscale' ? 120 : 150);
-      const scaleFactor = Math.min(2.0, Math.max(0.8, dpi / 72));
-      const quality = settings.imageQuality || (settings.level === 'max' ? 0.45 : settings.level === 'grayscale' ? 0.60 : 0.70);
-      const isGrayscale = settings.grayscale || settings.level === 'grayscale';
-
-      for (let i = 1; i <= pageCount; i++) {
-        const page = await pdfDoc.getPage(i);
-        const origViewport = page.getViewport({ scale: 1.0 });
-        const renderViewport = page.getViewport({ scale: scaleFactor });
-
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = renderViewport.width;
-        canvas.height = renderViewport.height;
-
-        if (ctx) {
-          await page.render({
-            canvasContext: ctx,
-            viewport: renderViewport,
-          }).promise;
-
-          if (isGrayscale) {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const d = imgData.data;
-            for (let p = 0; p < d.length; p += 4) {
-              const gray = (d[p] * 299 + d[p + 1] * 587 + d[p + 2] * 114) >> 10;
-              d[p] = gray;
-              d[p + 1] = gray;
-              d[p + 2] = gray;
-            }
-            ctx.putImageData(imgData, 0, 0);
-          }
-
-          const blob = await new Promise<Blob>((resolve) => {
-            canvas.toBlob((b) => resolve(b || new Blob()), 'image/jpeg', quality);
-          });
-          const imgBytes = await blob.arrayBuffer();
-          const embeddedImg = await newDoc.embedJpg(imgBytes);
-
-          const newPage = newDoc.addPage([origViewport.width, origViewport.height]);
-          newPage.drawImage(embeddedImg, {
-            x: 0,
-            y: 0,
-            width: origViewport.width,
-            height: origViewport.height,
-          });
-        }
-      }
-
-      if (settings.removeMetadata) {
-        newDoc.setTitle('');
-        newDoc.setAuthor('');
-        newDoc.setSubject('');
-        newDoc.setKeywords([]);
-        newDoc.setProducer('ErgonPDF Fast Engine');
-        newDoc.setCreator('ErgonPDF Local Workspace');
-      }
-
-      const rasterData = await newDoc.save({ useObjectStreams: true, addDefaultPage: false });
+      const rasterData = await PDFEngineService.downsampleRasterPages(buffer, settings);
 
       // SIZE SAFEGUARD:
       // If rasterization made it larger than original, fall back to lossless/original!
@@ -350,7 +418,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Adds custom text watermark with rotation and opacity.
+   * Adds a customizable text watermark stamp across document pages.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param settings - Watermark settings including text string, font size, opacity, rotation angle in degrees, and color.
+   * @returns Uint8Array containing the watermarked PDF.
    */
   static async addWatermark(
     buffer: ArrayBuffer,
@@ -360,11 +432,14 @@ export class PDFEngineService {
     const pages = doc.getPages();
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
 
-    // Parse color
-    let r = 0.5, g = 0.5, b = 0.5;
-    if (settings.color === 'red') { r = 0.9; g = 0.2; b = 0.2; }
-    else if (settings.color === 'blue') { r = 0.2; g = 0.4; b = 0.9; }
-    else if (settings.color === 'green') { r = 0.1; g = 0.7; b = 0.3; }
+    // Parse color components
+    let red = 0.5, green = 0.5, blue = 0.5;
+    if (settings.color === 'red') { red = 0.9; green = 0.2; blue = 0.2; }
+    else if (settings.color === 'blue') { red = 0.2; green = 0.4; blue = 0.9; }
+    else if (settings.color === 'green') { red = 0.1; green = 0.7; blue = 0.3; }
+
+    // Default rotation to 0 degrees if omitted or invalid
+    const rotationAngle = typeof settings.rotation === 'number' && !isNaN(settings.rotation) ? settings.rotation : 0;
 
     pages.forEach((page) => {
       const { width, height } = page.getSize();
@@ -376,9 +451,9 @@ export class PDFEngineService {
         y: (height - textHeight) / 2,
         size: settings.fontSize,
         font,
-        color: rgb(r, g, b),
+        color: rgb(red, green, blue),
         opacity: settings.opacity,
-        rotate: degrees(settings.rotation),
+        rotate: degrees(rotationAngle),
       });
     });
 
@@ -386,7 +461,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Adds page numbers / headers / footers.
+   * Stamped sequential page numbers or custom header/footer numbering on pages.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param settings - Numbering layout options (format, starting number, font size, placement position, margin).
+   * @returns Uint8Array containing the numbered PDF.
    */
   static async addPageNumbers(
     buffer: ArrayBuffer,
@@ -397,16 +476,25 @@ export class PDFEngineService {
     const total = pages.length;
     const font = await doc.embedFont(StandardFonts.Helvetica);
 
+    const startNumber = Number.isFinite(settings.startNumber) && settings.startNumber >= 1
+      ? Math.floor(settings.startNumber)
+      : 1;
+    const fontSize = Number.isFinite(settings.fontSize) && settings.fontSize > 0
+      ? settings.fontSize
+      : 10;
+    const margin = Number.isFinite(settings.margin) && settings.margin >= 0
+      ? settings.margin
+      : 25;
+
     pages.forEach((page, idx) => {
-      const pageNum = settings.startNumber + idx;
+      const pageNum = startNumber + idx;
       let label = `${pageNum}`;
       if (settings.format === 'Page 1') label = `Page ${pageNum}`;
       else if (settings.format === 'Page 1 of n') label = `Page ${pageNum} of ${total}`;
       else if (settings.format === '- 1 -') label = `- ${pageNum} -`;
 
       const { width } = page.getSize();
-      const textWidth = font.widthOfTextAtSize(label, settings.fontSize);
-      const margin = settings.margin || 25;
+      const textWidth = font.widthOfTextAtSize(label, fontSize);
 
       let x = width - textWidth - margin;
       let y = margin;
@@ -419,16 +507,16 @@ export class PDFEngineService {
         y = margin;
       } else if (settings.position === 'top-right') {
         x = width - textWidth - margin;
-        y = page.getSize().height - margin - settings.fontSize;
+        y = page.getSize().height - margin - fontSize;
       } else if (settings.position === 'top-center') {
         x = (width - textWidth) / 2;
-        y = page.getSize().height - margin - settings.fontSize;
+        y = page.getSize().height - margin - fontSize;
       }
 
       page.drawText(label, {
         x,
         y,
-        size: settings.fontSize,
+        size: fontSize,
         font,
         color: rgb(0.2, 0.25, 0.35),
       });
@@ -438,7 +526,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Bakes placed digital signatures into the PDF document.
+   * Bakes placed digital signatures into the PDF document at exact coordinates and scale.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param signatures - Array of placed digital signatures with target page numbers, relative coordinates, and data URLs.
+   * @returns Uint8Array of the document with embedded signatures.
    */
   static async applySignatures(
     buffer: ArrayBuffer,
@@ -448,32 +540,43 @@ export class PDFEngineService {
     const pages = doc.getPages();
 
     for (const sig of signatures) {
-      if (sig.pageNumber > pages.length) continue;
+      if (sig.pageNumber < 1 || sig.pageNumber > pages.length) continue;
+      if (!sig.dataUrl || typeof sig.dataUrl !== 'string' || !sig.dataUrl.startsWith('data:image/')) continue;
       const page = pages[sig.pageNumber - 1];
       const { width, height } = page.getSize();
 
-      const imgBytes = await fetch(sig.dataUrl).then((r) => r.arrayBuffer());
-      const embeddedImg = await doc.embedPng(imgBytes);
+      try {
+        const imgBytes = await fetch(sig.dataUrl).then((r) => r.arrayBuffer());
+        const embeddedImg = (sig.dataUrl.includes('image/jpeg') || sig.dataUrl.includes('image/jpg'))
+          ? await doc.embedJpg(imgBytes)
+          : await doc.embedPng(imgBytes);
 
-      const targetWidth = (sig.widthPercent / 100) * width;
-      const targetHeight = (sig.heightPercent / 100) * height;
-      const targetX = (sig.xPercent / 100) * width;
-      // In PDF coordinate space, origin (0,0) is at bottom-left
-      const targetY = height - (sig.yPercent / 100) * height - targetHeight;
+        const targetWidth = ((sig.widthPercent || 20) / 100) * width;
+        const targetHeight = ((sig.heightPercent || 10) / 100) * height;
+        const targetX = ((sig.xPercent || 0) / 100) * width;
+        // In PDF coordinate space, origin (0,0) is at bottom-left
+        const targetY = height - ((sig.yPercent || 0) / 100) * height - targetHeight;
 
-      page.drawImage(embeddedImg, {
-        x: targetX,
-        y: targetY,
-        width: targetWidth,
-        height: targetHeight,
-      });
+        page.drawImage(embeddedImg, {
+          x: targetX,
+          y: targetY,
+          width: targetWidth,
+          height: targetHeight,
+        });
+      } catch (err) {
+        console.warn(`Failed to embed signature on page ${sig.pageNumber}:`, err);
+      }
     }
 
     return await doc.save();
   }
 
   /**
-   * Visual Redaction: Permanently draws opaque blackout rectangles over sensitive data.
+   * Permanently draws opaque blackout rectangles over sensitive page regions to remove underlying vector content.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param redactions - Array of blackout bounding boxes with relative percentages and page numbers.
+   * @returns Uint8Array containing redacted PDF.
    */
   static async applyRedactions(
     buffer: ArrayBuffer,
@@ -483,7 +586,7 @@ export class PDFEngineService {
     const pages = doc.getPages();
 
     redactions.forEach((box) => {
-      if (box.pageNumber > pages.length) return;
+      if (box.pageNumber < 1 || box.pageNumber > pages.length) return;
       const page = pages[box.pageNumber - 1];
       const { width, height } = page.getSize();
 
@@ -505,13 +608,19 @@ export class PDFEngineService {
   }
 
   /**
-   * Converts all or selected PDF pages into high resolution image data URLs.
+   * Renders PDF pages into high-resolution image bitmaps (PNG, JPEG, or WebP).
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param format - Output image encoding ('png', 'jpeg', or 'webp').
+   * @param scale - Canvas rendering scale / DPI factor (defaults to 2.0).
+   * @returns Array of page objects containing 1-based page numbers, data URLs, and binary Blobs.
    */
   static async convertToImages(
     buffer: ArrayBuffer,
     format: 'png' | 'jpeg' | 'webp' = 'png',
     scale = 2.0
   ): Promise<{ pageNumber: number; dataUrl: string; blob: Blob }[]> {
+    const safeScale = Number.isFinite(scale) ? Math.max(0.25, Math.min(4.0, scale)) : 2.0;
     const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
     const pdfDoc = await loadingTask.promise;
     const pageCount = pdfDoc.numPages;
@@ -521,7 +630,7 @@ export class PDFEngineService {
 
     for (let i = 1; i <= pageCount; i++) {
       const page = await pdfDoc.getPage(i);
-      const viewport = page.getViewport({ scale });
+      const viewport = page.getViewport({ scale: safeScale });
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = viewport.width;
@@ -546,19 +655,44 @@ export class PDFEngineService {
   }
 
   /**
-   * Converts a list of image files into a single unified PDF.
+   * Combines an array of image files into a multi-page PDF document.
+   *
+   * @param images - Array of image descriptors containing file name, ArrayBuffer, and MIME type.
+   * @returns Uint8Array of the generated PDF.
    */
   static async imagesToPDF(
     images: { name: string; buffer: ArrayBuffer; type: string }[]
   ): Promise<Uint8Array> {
+    if (!images || images.length === 0) {
+      throw new Error('No images provided for PDF conversion.');
+    }
     const doc = await PDFDocument.create();
 
     for (const img of images) {
       let embeddedImg;
       if (img.type.includes('png')) {
         embeddedImg = await doc.embedPng(img.buffer);
-      } else {
+      } else if (img.type.includes('jpeg') || img.type.includes('jpg')) {
         embeddedImg = await doc.embedJpg(img.buffer);
+      } else {
+        if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+          const blob = new Blob([img.buffer], { type: img.type });
+          const bitmap = await createImageBitmap(blob);
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0);
+            const pngDataUrl = canvas.toDataURL('image/png');
+            const pngBytes = await fetch(pngDataUrl).then((r) => r.arrayBuffer());
+            embeddedImg = await doc.embedPng(pngBytes);
+          } else {
+            embeddedImg = await doc.embedJpg(img.buffer);
+          }
+        } else {
+          embeddedImg = await doc.embedJpg(img.buffer);
+        }
       }
 
       const { width, height } = embeddedImg;
@@ -575,7 +709,10 @@ export class PDFEngineService {
   }
 
   /**
-   * Extracts raw text from all pages of a PDF document.
+   * Extracts text content across all pages of a PDF document.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns Object containing full aggregated text and per-page text extracts.
    */
   static async extractFullText(
     buffer: ArrayBuffer
@@ -605,7 +742,10 @@ export class PDFEngineService {
   // =========================================================================
 
   /**
-   * Halves 2-in-1 two-page spreads into individual single pages.
+   * Bisects 2-in-1 two-page spreads down the center into individual single pages.
+   *
+   * @param buffer - Input PDF ArrayBuffer containing side-by-side spreads.
+   * @returns Uint8Array containing doubled page count single-page PDF.
    */
   static async halvePages(buffer: ArrayBuffer): Promise<Uint8Array> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -630,7 +770,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Pages per Sheet (N-Up imposition): 2, 4, 9, or 16 pages per sheet.
+   * Imposes multiple pages (2, 4, 9, or 16) onto single sheets for handout printing.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param settings - Imposition settings (pages per sheet, orientation, border outline).
+   * @returns Uint8Array containing N-up imposed PDF.
    */
   static async nUpImposition(
     buffer: ArrayBuffer,
@@ -640,49 +784,50 @@ export class PDFEngineService {
     const newDoc = await PDFDocument.create();
     const totalPages = srcDoc.getPageCount();
 
-    const n = settings.pagesPerSheet;
-    const cols = n === 2 ? 2 : n === 4 ? 2 : n === 9 ? 3 : 4;
-    const rows = n === 2 ? 1 : n === 4 ? 2 : n === 9 ? 3 : 4;
+    const allowedPages = [2, 4, 9, 16];
+    const pagesPerSheet = allowedPages.includes(settings.pagesPerSheet) ? settings.pagesPerSheet : 2;
+    const columnCount = pagesPerSheet === 2 ? 2 : pagesPerSheet === 4 ? 2 : pagesPerSheet === 9 ? 3 : 4;
+    const rowCount = pagesPerSheet === 2 ? 1 : pagesPerSheet === 4 ? 2 : pagesPerSheet === 9 ? 3 : 4;
 
     // Standard A4 sheet: 595.28 x 841.89 (or landscape 841.89 x 595.28)
-    const isLandscape = settings.orientation === 'landscape' || (settings.orientation === 'auto' && n === 2);
+    const isLandscape = settings.orientation === 'landscape' || (settings.orientation === 'auto' && pagesPerSheet === 2);
     const sheetWidth = isLandscape ? 841.89 : 595.28;
     const sheetHeight = isLandscape ? 595.28 : 841.89;
 
-    const cellWidth = sheetWidth / cols;
-    const cellHeight = sheetHeight / rows;
+    const cellWidth = sheetWidth / columnCount;
+    const cellHeight = sheetHeight / rowCount;
 
-    for (let i = 0; i < totalPages; i += n) {
+    for (let sheetStartIdx = 0; sheetStartIdx < totalPages; sheetStartIdx += pagesPerSheet) {
       const sheetPage = newDoc.addPage([sheetWidth, sheetHeight]);
 
-      for (let cellIdx = 0; cellIdx < n; cellIdx++) {
-        const pageIdx = i + cellIdx;
-        if (pageIdx >= totalPages) break;
+      for (let cellIndex = 0; cellIndex < pagesPerSheet; cellIndex++) {
+        const pageIndex = sheetStartIdx + cellIndex;
+        if (pageIndex >= totalPages) break;
 
-        const [embeddedPage] = await newDoc.embedPages([srcDoc.getPage(pageIdx)]);
-        const { width: origW, height: origH } = embeddedPage;
+        const [embeddedPage] = await newDoc.embedPages([srcDoc.getPage(pageIndex)]);
+        const { width: originalWidth, height: originalHeight } = embeddedPage;
 
-        const col = cellIdx % cols;
-        const row = Math.floor(cellIdx / cols);
+        const col = cellIndex % columnCount;
+        const row = Math.floor(cellIndex / columnCount);
 
         // Fit within cell with padding
         const padding = 12;
-        const maxW = cellWidth - padding * 2;
-        const maxH = cellHeight - padding * 2;
-        const scale = Math.min(maxW / origW, maxH / origH);
+        const maxWidth = cellWidth - padding * 2;
+        const maxHeight = cellHeight - padding * 2;
+        const scale = Math.min(maxWidth / originalWidth, maxHeight / originalHeight);
 
-        const renderW = origW * scale;
-        const renderH = origH * scale;
+        const renderWidth = originalWidth * scale;
+        const renderHeight = originalHeight * scale;
 
-        const x = col * cellWidth + (cellWidth - renderW) / 2;
+        const x = col * cellWidth + (cellWidth - renderWidth) / 2;
         // In PDF coordinates (0,0) is bottom-left, row 0 is top
-        const y = sheetHeight - (row + 1) * cellHeight + (cellHeight - renderH) / 2;
+        const y = sheetHeight - (row + 1) * cellHeight + (cellHeight - renderHeight) / 2;
 
         sheetPage.drawPage(embeddedPage, {
           x,
           y,
-          width: renderW,
-          height: renderH,
+          width: renderWidth,
+          height: renderHeight,
         });
 
         if (settings.addBorder) {
@@ -702,56 +847,59 @@ export class PDFEngineService {
   }
 
   /**
-   * Booklet Creator: Imposes pages for saddle-stitch folding.
+   * Generates a saddle-stitch booklet imposition layout for folding and stapling.
+   * Automatically pads document pages to a multiple of 4 and organizes front/back spreads.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns Uint8Array containing 2-page landscape booklet sheets.
    */
   static async createBooklet(buffer: ArrayBuffer): Promise<Uint8Array> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const newDoc = await PDFDocument.create();
-    const origCount = srcDoc.getPageCount();
+    const originalCount = srcDoc.getPageCount();
+    if (originalCount === 0) return await newDoc.save();
 
     // Pad to multiple of 4
-    const targetCount = Math.ceil(origCount / 4) * 4;
-    const blankDoc = await PDFDocument.create();
+    const targetCount = Math.ceil(originalCount / 4) * 4;
     const samplePage = srcDoc.getPage(0);
-    const { width: pWidth, height: pHeight } = samplePage.getSize();
-    blankDoc.addPage([pWidth, pHeight]);
+    const { width: pageWidth, height: pageHeight } = samplePage.getSize();
 
     // Sheet is landscape, 2 pages side-by-side
-    const sheetW = pHeight > pWidth ? pWidth * 2 : pWidth;
-    const sheetH = pHeight;
+    const sheetWidth = pageHeight > pageWidth ? pageWidth * 2 : pageWidth;
+    const sheetHeight = pageHeight;
 
     const sheetsCount = targetCount / 4;
-    for (let s = 0; s < sheetsCount; s++) {
-      // Sheet Front: Left = targetCount - 2*s, Right = 2*s + 1
-      const frontLeftIdx = targetCount - 1 - 2 * s;
-      const frontRightIdx = 2 * s;
+    for (let sheetIndex = 0; sheetIndex < sheetsCount; sheetIndex++) {
+      // Sheet Front: Left = targetCount - 2*sheetIndex, Right = 2*sheetIndex + 1
+      const frontLeftIdx = targetCount - 1 - 2 * sheetIndex;
+      const frontRightIdx = 2 * sheetIndex;
 
-      const frontSheet = newDoc.addPage([sheetW, sheetH]);
-      const halfW = sheetW / 2;
+      const frontSheet = newDoc.addPage([sheetWidth, sheetHeight]);
+      const halfWidth = sheetWidth / 2;
 
       // Draw front left
-      if (frontLeftIdx < origCount) {
+      if (frontLeftIdx < originalCount) {
         const [leftEmbed] = await newDoc.embedPages([srcDoc.getPage(frontLeftIdx)]);
-        frontSheet.drawPage(leftEmbed, { x: 0, y: 0, width: halfW, height: sheetH });
+        frontSheet.drawPage(leftEmbed, { x: 0, y: 0, width: halfWidth, height: sheetHeight });
       }
       // Draw front right
-      if (frontRightIdx < origCount) {
+      if (frontRightIdx < originalCount) {
         const [rightEmbed] = await newDoc.embedPages([srcDoc.getPage(frontRightIdx)]);
-        frontSheet.drawPage(rightEmbed, { x: halfW, y: 0, width: halfW, height: sheetH });
+        frontSheet.drawPage(rightEmbed, { x: halfWidth, y: 0, width: halfWidth, height: sheetHeight });
       }
 
-      // Sheet Back: Left = 2*s + 2, Right = targetCount - 2 - 2*s
-      const backLeftIdx = 2 * s + 1;
-      const backRightIdx = targetCount - 2 - 2 * s;
+      // Sheet Back: Left = 2*sheetIndex + 2, Right = targetCount - 2 - 2*sheetIndex
+      const backLeftIdx = 2 * sheetIndex + 1;
+      const backRightIdx = targetCount - 2 - 2 * sheetIndex;
 
-      const backSheet = newDoc.addPage([sheetW, sheetH]);
-      if (backLeftIdx < origCount) {
+      const backSheet = newDoc.addPage([sheetWidth, sheetHeight]);
+      if (backLeftIdx < originalCount) {
         const [leftEmbed] = await newDoc.embedPages([srcDoc.getPage(backLeftIdx)]);
-        backSheet.drawPage(leftEmbed, { x: 0, y: 0, width: halfW, height: sheetH });
+        backSheet.drawPage(leftEmbed, { x: 0, y: 0, width: halfWidth, height: sheetHeight });
       }
-      if (backRightIdx < origCount) {
+      if (backRightIdx < originalCount) {
         const [rightEmbed] = await newDoc.embedPages([srcDoc.getPage(backRightIdx)]);
-        backSheet.drawPage(rightEmbed, { x: halfW, y: 0, width: halfW, height: sheetH });
+        backSheet.drawPage(rightEmbed, { x: halfWidth, y: 0, width: halfWidth, height: sheetHeight });
       }
     }
 
@@ -759,18 +907,28 @@ export class PDFEngineService {
   }
 
   /**
-   * Non-destructive page Crop tool.
+   * Applies non-destructive crop margins to all pages of a PDF document.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param settings - Percentage margins to trim (leftPercent, rightPercent, topPercent, bottomPercent).
+   * @returns Uint8Array containing cropped PDF document.
    */
   static async cropDocument(buffer: ArrayBuffer, settings: CropSettings): Promise<Uint8Array> {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const pages = doc.getPages();
 
+    const clamp = (val: number | undefined) => Math.max(0, Math.min(100, Number.isFinite(val) ? Number(val) : 0));
+    const leftPercent = clamp(settings.leftPercent);
+    const rightPercent = clamp(settings.rightPercent);
+    const topPercent = clamp(settings.topPercent);
+    const bottomPercent = clamp(settings.bottomPercent);
+
     pages.forEach((page) => {
       const { width, height } = page.getSize();
-      const cropLeft = (settings.leftPercent / 100) * width;
-      const cropRight = width - (settings.rightPercent / 100) * width;
-      const cropBottom = (settings.bottomPercent / 100) * height;
-      const cropTop = height - (settings.topPercent / 100) * height;
+      const cropLeft = (leftPercent / 100) * width;
+      const cropRight = width - (rightPercent / 100) * width;
+      const cropBottom = (bottomPercent / 100) * height;
+      const cropTop = height - (topPercent / 100) * height;
 
       page.setCropBox(cropLeft, cropBottom, Math.max(10, cropRight - cropLeft), Math.max(10, cropTop - cropBottom));
     });
@@ -779,7 +937,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Resizes document pages to target standardized dimensions (A4, A3, Letter, etc.).
+   * Standardizes PDF page sizes to standard paper dimensions (A4, A3, A5, Letter, Legal).
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param settings - Resizing configuration including target size name and orientation ('portrait' or 'landscape').
+   * @returns Uint8Array containing resized PDF document.
    */
   static async resizeDocument(buffer: ArrayBuffer, settings: ResizeSettings): Promise<Uint8Array> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -818,7 +980,12 @@ export class PDFEngineService {
   }
 
   /**
-   * Alternates & mixes pages from two PDFs in interleaved order (odd/even duplex scan).
+   * Interleaves two PDF documents alternating page by page (useful for merging odd and even duplex scan batches).
+   *
+   * @param docABuffer - Document containing odd or primary pages.
+   * @param docBBuffer - Document containing even or secondary pages.
+   * @param reverseB - Optional flag to reverse document B (for reverse-order scanner feeds).
+   * @returns Uint8Array containing merged alternating pages.
    */
   static async alternateMixDocuments(docABuffer: ArrayBuffer, docBBuffer: ArrayBuffer, reverseB = false): Promise<Uint8Array> {
     const docA = await PDFDocument.load(docABuffer, { ignoreEncryption: true });
@@ -845,7 +1012,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Detects and removes blank or nearly empty pages.
+   * Automatically scans and discards empty or blank pages based on text emptiness and canvas pixel luminance.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param threshold - Luminance ratio threshold for white pixels (defaults to 0.99).
+   * @returns Object containing the cleaned PDF data and the number of removed blank pages.
    */
   static async removeBlankPages(buffer: ArrayBuffer, threshold = 0.99): Promise<{ data: Uint8Array; removedCount: number }> {
     const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
@@ -911,7 +1082,10 @@ export class PDFEngineService {
   // =========================================================================
 
   /**
-   * Extracts all raster images embedded in the document and returns a ZIP blob.
+   * Extracts all raster images embedded in the document and bundles them into a ZIP archive.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns Promise resolving to a Blob containing the ZIP archive of PNG images.
    */
   static async extractImagesToZip(buffer: ArrayBuffer): Promise<Blob> {
     const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
@@ -941,39 +1115,77 @@ export class PDFEngineService {
   }
 
   /**
-   * Overlays or underlays another template PDF onto the document.
+   * Overlays or underlays a template PDF onto all pages of the target document.
+   *
+   * @param docBuffer - Target document ArrayBuffer.
+   * @param templateBuffer - Template PDF ArrayBuffer to overlay or underlay.
+   * @param isUnderlay - If true, places template behind page content instead of on top.
+   * @returns Uint8Array containing merged overlay.
    */
   static async overlayDocument(docBuffer: ArrayBuffer, templateBuffer: ArrayBuffer, isUnderlay = false): Promise<Uint8Array> {
     const mainDoc = await PDFDocument.load(docBuffer, { ignoreEncryption: true });
     const templateDoc = await PDFDocument.load(templateBuffer, { ignoreEncryption: true });
+    if (templateDoc.getPageCount() === 0) {
+      throw new Error('Template document contains no pages.');
+    }
     const newDoc = await PDFDocument.create();
 
-    const mainPages = await newDoc.copyPages(mainDoc, mainDoc.getPageIndices());
-    const [templatePageEmbed] = await newDoc.embedPages([templateDoc.getPage(0)]);
+    const templatePage = templateDoc.getPage(0);
+    // Ensure template page has Contents stream so pdf-lib embedPages does not throw
+    if (!templatePage.node.Contents()) {
+      const { width, height } = templatePage.getSize();
+      templatePage.drawRectangle({ x: 0, y: 0, width, height, opacity: 0 });
+    }
+    const [templatePageEmbed] = await newDoc.embedPages([templatePage]);
 
-    mainPages.forEach((page) => {
-      const { width, height } = page.getSize();
-      if (!isUnderlay) {
+    if (!isUnderlay) {
+      const mainPages = await newDoc.copyPages(mainDoc, mainDoc.getPageIndices());
+      mainPages.forEach((page) => {
+        const { width, height } = page.getSize();
         page.drawPage(templatePageEmbed, { x: 0, y: 0, width, height });
         newDoc.addPage(page);
-      } else {
-        const underlayPage = newDoc.addPage([width, height]);
-        underlayPage.drawPage(templatePageEmbed, { x: 0, y: 0, width, height });
-        // copy main page contents over
+      });
+    } else {
+      const pageIndices = mainDoc.getPageIndices();
+      for (const idx of pageIndices) {
+        const srcPage = mainDoc.getPage(idx);
+        if (!srcPage.node.Contents()) {
+          const { width, height } = srcPage.getSize();
+          srcPage.drawRectangle({ x: 0, y: 0, width, height, opacity: 0 });
+        }
+        const [mainPageEmbed] = await newDoc.embedPages([srcPage]);
+        const underlayPage = newDoc.addPage([mainPageEmbed.width, mainPageEmbed.height]);
+        underlayPage.drawPage(templatePageEmbed, { x: 0, y: 0, width: mainPageEmbed.width, height: mainPageEmbed.height });
+        underlayPage.drawPage(mainPageEmbed, { x: 0, y: 0, width: mainPageEmbed.width, height: mainPageEmbed.height });
       }
-    });
+    }
 
     return await newDoc.save();
   }
 
   /**
-   * Creates a fresh blank PDF with optional lined or grid pattern.
+   * Generates a fresh blank PDF with optional lined notebook or grid patterns.
+   *
+   * @param pattern - Background pattern style ('blank', 'lines', or 'grid').
+   * @param pageCount - Number of pages to initialize (default 1).
+   * @returns Uint8Array of the created PDF document.
    */
   static async createBlankPDF(pattern: 'blank' | 'lines' | 'grid' = 'blank', pageCount = 1): Promise<Uint8Array> {
+    const safePageCount = Number.isFinite(pageCount) ? Math.max(1, Math.min(100, Math.floor(pageCount))) : 1;
     const doc = await PDFDocument.create();
-    for (let i = 0; i < pageCount; i++) {
+    for (let i = 0; i < safePageCount; i++) {
       const page = doc.addPage([595.28, 841.89]); // A4
       const { width, height } = page.getSize();
+
+      // Ensure page has a valid Contents stream for embedding compatibility
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width,
+        height,
+        color: rgb(1, 1, 1),
+        opacity: 0,
+      });
 
       if (pattern === 'lines') {
         const lineSpacing = 24;
@@ -1009,10 +1221,15 @@ export class PDFEngineService {
   }
 
   /**
-   * Flattens / Rasterizes an entire PDF into non-editable high-resolution page bitmaps.
+   * Flattens and rasterizes an entire PDF into non-editable high-resolution page bitmaps.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param dpi - Target rasterization resolution (default 150 DPI).
+   * @returns Uint8Array containing flattened PDF.
    */
   static async flattenAndRasterize(buffer: ArrayBuffer, dpi = 150): Promise<Uint8Array> {
-    const scale = dpi / 72;
+    const safeDpi = Number.isFinite(dpi) ? Math.max(72, Math.min(300, dpi)) : 150;
+    const scale = safeDpi / 72;
     const images = await this.convertToImages(buffer, 'png', scale);
     const imageList = await Promise.all(
       images.map(async (img) => ({
@@ -1026,6 +1243,9 @@ export class PDFEngineService {
 
   /**
    * Reconstructs corrupted or damaged PDF streams into a brand-new valid PDF.
+   *
+   * @param buffer - Damaged or malformed PDF ArrayBuffer.
+   * @returns Uint8Array of the reconstructed PDF.
    */
   static async repairDocument(buffer: ArrayBuffer): Promise<Uint8Array> {
     try {
@@ -1048,7 +1268,10 @@ export class PDFEngineService {
   }
 
   /**
-   * PDF to Tabular CSV extraction.
+   * Parses tabular whitespace layouts and outputs a clean CSV formatted string.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns String formatted as CSV tabular data.
    */
   static async extractTablesToCSV(buffer: ArrayBuffer): Promise<string> {
     const { pages } = await this.extractFullText(buffer);
@@ -1068,7 +1291,10 @@ export class PDFEngineService {
   }
 
   /**
-   * Fast Web View Optimization (Linearization & stream defragmentation).
+   * Linearizes and defragments streams for Fast Web View optimization.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns Uint8Array of the optimized PDF.
    */
   static async webOptimize(buffer: ArrayBuffer): Promise<Uint8Array> {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -1079,7 +1305,13 @@ export class PDFEngineService {
   }
 
   /**
-   * Stamps a dynamic QR code onto a document page.
+   * Stamps a dynamic QR code onto a document page at a configurable position.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param pageNum - 1-based page number to stamp.
+   * @param qrText - Text, URL, or data payload to encode into the QR matrix.
+   * @param settings - Placement configuration (position, size percentage, margin).
+   * @returns Uint8Array containing stamped document.
    */
   static async stampQRCode(
     buffer: ArrayBuffer,
@@ -1087,9 +1319,14 @@ export class PDFEngineService {
     qrText: string,
     settings: QRCodeSettings
   ): Promise<Uint8Array> {
+    if (!qrText || typeof qrText !== 'string' || qrText.trim().length === 0) {
+      throw new Error('QR code payload cannot be empty.');
+    }
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const pages = doc.getPages();
-    if (pageNum > pages.length) return await doc.save();
+    if (pageNum < 1 || pageNum > pages.length) {
+      throw new Error(`Invalid page number ${pageNum}. Document has ${pages.length} page(s).`);
+    }
 
     const page = pages[pageNum - 1];
     const { width, height } = page.getSize();
@@ -1130,7 +1367,11 @@ export class PDFEngineService {
   }
 
   /**
-   * Adds interactive fillable form fields (Text inputs, Checkboxes) using PDF Form API.
+   * Adds interactive fillable PDF Form elements (text inputs and checkboxes).
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param fields - Array of form field definitions with field names, types, and coordinates.
+   * @returns Uint8Array containing the interactive form-enabled PDF.
    */
   static async addInteractiveFormFields(
     buffer: ArrayBuffer,
@@ -1152,11 +1393,11 @@ export class PDFEngineService {
       const fieldName = field.name || `field_${index + 1}`;
 
       if (field.type === 'text') {
-        const tf = form.createTextField(fieldName);
-        tf.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
+        const textField = form.createTextField(fieldName);
+        textField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
       } else if (field.type === 'checkbox') {
-        const cb = form.createCheckBox(fieldName);
-        cb.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
+        const checkBoxField = form.createCheckBox(fieldName);
+        checkBoxField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
       }
     });
 
@@ -1164,16 +1405,26 @@ export class PDFEngineService {
   }
 
   /**
-   * Converts PDF document text and structural headings into clean formatted Word (.doc / .docx) file.
+   * Converts PDF document text and headings into a formatted Microsoft Word document (.doc).
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param title - Document heading and HTML title (default 'Document').
+   * @returns Blob containing formatted Word document bytes.
    */
   static async convertToWordDoc(buffer: ArrayBuffer, title = 'Document'): Promise<Blob> {
     const { pages } = await this.extractFullText(buffer);
+    const safeTitle = (title || 'Document')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
     let htmlContent = `<!DOCTYPE html>
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
 <meta charset='utf-8'>
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>
   body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; margin: 40px; }
   h1 { font-size: 20pt; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-top: 24px; }
@@ -1204,7 +1455,10 @@ export class PDFEngineService {
   }
 
   /**
-   * PDF/A-1b Archival Preserver: stamps metadata and standard device-independent color profile.
+   * Injects ISO 19005-1 compliant archival PDF/A metadata headers.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @returns Uint8Array of PDF/A compliant document.
    */
   static async convertToPdfA(buffer: ArrayBuffer): Promise<Uint8Array> {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -1218,7 +1472,12 @@ export class PDFEngineService {
   }
 
   /**
-   * Extracts specific page numbers into a standalone PDF.
+   * Extracts a specific subset of pages into a standalone PDF document.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param pageNumbers - Array of 1-based page numbers to extract.
+   * @returns Uint8Array containing extracted pages.
+   * @throws Error if no valid page numbers are provided.
    */
   static async extractPageRanges(buffer: ArrayBuffer, pageNumbers: number[]): Promise<Uint8Array> {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
@@ -1238,13 +1497,25 @@ export class PDFEngineService {
 
   /**
    * Encrypts a PDF document with standard AES-256 encryption.
-   * Completely local in memory without external server transmission.
+   * Executes entirely in-memory with zero network transfer.
+   *
+   * @param buffer - Input PDF ArrayBuffer or Uint8Array.
+   * @param userPassword - Password required to open and view the PDF.
+   * @param ownerPassword - Optional administrative password for permissions management.
+   * @returns Uint8Array containing AES-256 encrypted document.
    */
   static async encryptDocument(
     buffer: ArrayBuffer | Uint8Array,
     userPassword: string,
     ownerPassword?: string
   ): Promise<Uint8Array> {
+    const hasUserPassword = typeof userPassword === 'string' && userPassword.length > 0;
+    const hasOwnerPassword = typeof ownerPassword === 'string' && ownerPassword.length > 0;
+
+    if (!hasUserPassword && !hasOwnerPassword) {
+      throw new Error('Encryption requires a non-empty password. Please provide a user password or owner password.');
+    }
+
     const uint8 = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
     const encrypted = await encryptPDF(uint8, userPassword, {
       algorithm: 'AES-256',

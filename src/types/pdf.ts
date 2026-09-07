@@ -89,7 +89,7 @@ export interface WatermarkSettings {
   text: string;
   fontSize: number;
   opacity: number;
-  rotation: number;
+  rotation?: number;
   color: string;
   pages: 'all' | 'custom';
   customPages?: string;

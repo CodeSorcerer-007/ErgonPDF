@@ -58,10 +58,43 @@ export const MergeModal: React.FC<MergeModalProps> = ({
   }, []);
 
   React.useEffect(() => {
-    if (isOpen && initialFiles.length > 0) {
-      addFiles(initialFiles);
-    }
-  }, [isOpen, initialFiles, addFiles]);
+    if (!isOpen || initialFiles.length === 0) return;
+    let isCancelled = false;
+    const loadInitialFiles = async () => {
+      const newItems: MergeItem[] = [];
+      for (const f of initialFiles) {
+        if (f.type === 'application/pdf' || f.name.endsWith('.pdf')) {
+          const buffer = await f.arrayBuffer();
+          try {
+            const inspected = await PDFEngineService.inspectDocument(buffer);
+            newItems.push({
+              id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              file: f,
+              name: f.name,
+              size: f.size,
+              pageCount: inspected.pageCount,
+              arrayBuffer: buffer,
+            });
+          } catch {
+            newItems.push({
+              id: `item-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              file: f,
+              name: f.name,
+              size: f.size,
+              arrayBuffer: buffer,
+            });
+          }
+        }
+      }
+      if (!isCancelled) {
+        setItems((prev) => [...prev, ...newItems]);
+      }
+    };
+    void loadInitialFiles();
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, initialFiles]);
 
   if (!isOpen) return null;
 

@@ -187,11 +187,11 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
   // Update tool tab when activeToolId prop changes
-  useEffect(() => {
-    if (activeToolId) {
-      setCurrentToolTab(activeToolId);
-    }
-  }, [activeToolId]);
+  const [prevActiveToolId, setPrevActiveToolId] = useState<string>(activeToolId);
+  if (activeToolId && activeToolId !== prevActiveToolId) {
+    setPrevActiveToolId(activeToolId);
+    setCurrentToolTab(activeToolId);
+  }
 
   // Render current page onto canvas
   useEffect(() => {

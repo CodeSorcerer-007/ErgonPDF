@@ -27,11 +27,11 @@ export const CameraScanModal: React.FC<CameraScanModalProps> = ({
   }, [stream]);
 
   const startCamera = React.useCallback(async () => {
-    setHasCameraError(null);
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
       });
+      setHasCameraError(null);
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
@@ -43,15 +43,40 @@ export const CameraScanModal: React.FC<CameraScanModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      startCamera();
-    } else {
-      stopCamera();
-    }
+    if (!isOpen) return;
+    let isCancelled = false;
+    let currentStream: MediaStream | null = null;
+    const initCamera = async () => {
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        });
+        if (isCancelled) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        currentStream = mediaStream;
+        setHasCameraError(null);
+        setStream(mediaStream);
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream;
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          console.error(err);
+          setHasCameraError('Unable to access camera. Please check browser permissions or connect a webcam.');
+        }
+      }
+    };
+    void initCamera();
     return () => {
+      isCancelled = true;
+      if (currentStream) {
+        currentStream.getTracks().forEach((track) => track.stop());
+      }
       stopCamera();
     };
-  }, [isOpen, startCamera, stopCamera]);
+  }, [isOpen, stopCamera]);
 
   const handleCapture = () => {
     if (!videoRef.current) return;
