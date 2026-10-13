@@ -167,6 +167,15 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
     return (
       <div
         key={tool.id}
+        role="button"
+        tabIndex={0}
+        aria-label={`${tool.name}: ${tool.description}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelectTool(tool.id);
+          }
+        }}
         onClick={() => onSelectTool(tool.id)}
         className="glass-card"
         style={{
@@ -210,6 +219,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
                 </span>
               )}
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onToggleFavorite(tool.id);
@@ -217,6 +227,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
                 className="btn btn-ghost btn-icon"
                 style={{ padding: '3px' }}
                 title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                aria-label={isFavorited ? `Remove ${tool.name} from favorites` : `Add ${tool.name} to favorites`}
               >
                 <Star 
                   size={13} 
@@ -326,6 +337,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
             placeholder="Search all 43 tools…"
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
+            aria-label="Search all tools"
             style={{
               border: 'none',
               background: 'transparent',

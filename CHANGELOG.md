@@ -10,14 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-09-07
 
 ### Added
+- **Workspace Modular Decomposition**: Decomposed monolithic workspace into 36 modular, typed tool panels under [`src/components/workspace/`](src/components/workspace/).
+- **Native HTML5 Drag-and-Drop Reordering**: Implemented native page card dragging and reordering with visual highlight states in [`ThumbnailSidebar.tsx`](src/components/workspace/ThumbnailSidebar.tsx).
+- **Real-Document AI Extraction Pipeline**: Connected AI Studio to [`PDFEngineService.extractFullText()`](src/services/pdfEngine.ts) on document load, providing real semantic analysis and a new Raw Text viewer tab.
+- **Accessibility & Keyboard Navigation**: Implemented WCAG 2.1 AA compliant ARIA attributes, combobox active-descendants, region landmarks, and keyboard shortcuts across core navigation and dropzones.
+- **Universal Tool Grid Routing**: Connected all tools (`create-pdf`, `images-to-pdf`, `camera-scan`, `webpage-to-pdf`, `compare-pdf`, `view-pdf`) to direct action workflows.
+- **Settings DPI Persistence**: Wired default DPI preferences to `localStorage` via [`StorageService`](src/services/storageService.ts).
 - **Global React Error Boundary**: Added [`src/components/ErrorBoundary.tsx`](src/components/ErrorBoundary.tsx) with local data-privacy assurance, diagnostic stack viewer, and application reload/reset controls.
 - **Container Health & Liveness Probes**: Added dedicated `/healthz` plaintext endpoint to [`nginx.conf`](nginx.conf) and [`vite.config.ts`](vite.config.ts) for Kubernetes/Docker container probes.
 - **Security Headers**: Injected `Content-Security-Policy`, `Strict-Transport-Security` (HSTS), and `Permissions-Policy` headers in Nginx configuration.
 - **Environment Template**: Added [`.env.example`](.env.example) and updated [`.gitignore`](.gitignore) to protect environment variable files.
+- **Architectural Documentation**: Added [`ROADMAP.md`](ROADMAP.md) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ### Changed
 - **Unprivileged Container Execution**: Hardened [`Dockerfile`](Dockerfile) to run under non-root `USER nginx`.
-- **Exact Version Pinning**: Pinned all production and development dependencies in [`package.json`](package.json) to exact semantic versions and added `tar` 7.5.22 override.
+- **Exact Version Pinning**: Pinned all production and development dependencies in [`package.json`](package.json) to exact semantic versions (1.2.0) and added `tar` 7.5.22 override.
 - **Expanded Test Suites**: Expanded [`scripts/smoke-test.js`](scripts/smoke-test.js) to 85 tests (including `/healthz`) and [`scripts/test-features.js`](scripts/test-features.js) to 20 engine tests (including overlay and underlay templates).
 
 ### Fixed

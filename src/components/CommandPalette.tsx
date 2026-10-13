@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, CornerDownLeft, Sparkles, Moon, Sun, Settings } from 'lucide-react';
+import { Search, X, CornerDownLeft, Sparkles, Moon, Sun, Settings, ShieldCheck } from 'lucide-react';
 import { TOOLS_REGISTRY } from '../config/toolsRegistry';
 import type { PDFTool } from '../types/pdf';
 
@@ -82,6 +82,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const allItemsCount = filteredTools.length + systemActions.length;
 
+  const activeItemId = React.useMemo(() => {
+    if (selectedIndex < filteredTools.length) {
+      const tool = filteredTools[selectedIndex];
+      return tool ? `palette-item-${tool.id}` : undefined;
+    }
+    const act = systemActions[selectedIndex - filteredTools.length];
+    return act ? `palette-item-${act.id}` : undefined;
+  }, [selectedIndex, filteredTools, systemActions]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
@@ -121,6 +130,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   return (
     <div 
+      role="dialog"
+      aria-modal="true"
+      aria-label="Command palette"
       style={{
         position: 'fixed',
         inset: 0,
@@ -159,6 +171,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           <input 
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-label="Search tools"
+            aria-autocomplete="list"
+            aria-controls="command-palette-results"
+            aria-activedescendant={activeItemId}
             placeholder="Type what you want to do (e.g. 'make smaller', 'sign', 'merge')…"
             value={query}
             onChange={(e) => {
@@ -178,13 +196,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             onClick={onClose}
             className="btn btn-ghost btn-icon"
             style={{ padding: '4px' }}
+            aria-label="Close command palette"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Results List */}
-        <div style={{
+        <div 
+          id="command-palette-results"
+          role="listbox"
+          aria-label="Search results"
+          style={{
           flex: 1,
           overflowY: 'auto',
           padding: '10px',
@@ -217,6 +240,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     const isSelected = index === selectedIndex;
                     return (
                       <div
+                        id={`palette-item-${tool.id}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={tool.id}
                         onClick={() => {
                           onSelectTool(tool.id);
@@ -297,6 +323,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                     const Icon = action.icon;
                     return (
                       <div
+                        id={`palette-item-${action.id}`}
+                        role="option"
+                        aria-selected={isSelected}
                         key={action.id}
                         onClick={action.execute}
                         onMouseEnter={() => setSelectedIndex(globalIdx)}
@@ -366,8 +395,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             <span><kbd>↵</kbd> to select</span>
             <span><kbd>esc</kbd> to close</span>
           </div>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            🔒 100% In-Browser Execution
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <ShieldCheck size={14} strokeWidth={1.8} />
+            <span>100% In-Browser Execution</span>
           </span>
         </div>
       </div>

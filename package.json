@@ -1,6 +1,6 @@
 {
   "name": "ergonpdf",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "The Open-Source, Privacy-First All-in-One PDF Workspace",
   "license": "MIT",
   "type": "module",
@@ -9,6 +9,8 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "smoke-test": "node scripts/smoke-test.js",
+    "test-features": "node scripts/test-features.js",
     "create-tool": "node scripts/create-tool.js",
     "generate-samples": "node scripts/generate-samples.js"
   },

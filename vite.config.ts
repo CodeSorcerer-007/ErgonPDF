@@ -25,7 +25,7 @@ function ergonApiAndStaticPlugin(): Plugin {
     if (pathname === '/api/health') {
       res.setHeader('Content-Type', 'application/json');
       res.writeHead(200);
-      res.end(JSON.stringify({ status: 'ok', service: 'ErgonPDF', version: '1.1.0', mode: 'client-wasm', timestamp: Date.now() }));
+      res.end(JSON.stringify({ status: 'ok', service: 'ErgonPDF', version: '1.2.0', mode: 'client-wasm', timestamp: Date.now() }));
       return;
     }
 
@@ -70,7 +70,18 @@ function ergonApiAndStaticPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify('1.2.0'),
+  },
   plugins: [react(), ergonApiAndStaticPlugin()],
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+  },
+  preview: {
+    host: '127.0.0.1',
+    port: 4173,
+  },
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

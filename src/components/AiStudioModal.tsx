@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Sparkles, Send, FileText, CheckSquare, Calendar, Download, BookOpen } from 'lucide-react';
+import { X, Sparkles, Send, FileText, CheckSquare, Calendar, Download, BookOpen, AlignLeft, Loader2 } from 'lucide-react';
 import { AIService } from '../services/aiService';
 import type { DocumentAnalysis, Flashcard, ChatMessage } from '../services/aiService';
 
@@ -9,6 +9,7 @@ interface AiStudioModalProps {
   documentName: string;
   documentText: string;
   pageTexts: { pageNumber: number; text: string }[];
+  isTextLoading?: boolean;
   onNavigateToPage?: (pageNum: number) => void;
 }
 
@@ -18,9 +19,10 @@ export const AiStudioModal: React.FC<AiStudioModalProps> = ({
   documentName,
   documentText,
   pageTexts,
+  isTextLoading = false,
   onNavigateToPage,
 }) => {
-  const [activeTab, setActiveTab] = useState<'insights' | 'chat' | 'flashcards'>('insights');
+  const [activeTab, setActiveTab] = useState<'insights' | 'chat' | 'flashcards' | 'raw'>('insights');
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
       id: 'msg-welcome',
@@ -223,11 +225,43 @@ ${analysis.importantDates.join(', ') || 'None'}
             <BookOpen size={15} />
             <span>Study Flashcards</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('raw')}
+            className="btn btn-ghost"
+            style={{
+              flex: 1,
+              borderRadius: 0,
+              borderBottom: activeTab === 'raw' ? '2px solid var(--accent-primary)' : 'none',
+              color: activeTab === 'raw' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'raw' ? 600 : 500,
+            }}
+          >
+            <AlignLeft size={15} />
+            <span>Raw Text</span>
+          </button>
         </div>
 
         {/* Tab Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
           {activeTab === 'insights' && (
+            !documentText ? (
+              <div className="glass-card" style={{ padding: '36px 20px', textAlign: 'center' }}>
+                {isTextLoading ? (
+                  <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--accent-primary)' }} />
+                ) : (
+                  <Sparkles size={28} style={{ margin: '0 auto 12px', color: 'var(--accent-primary)' }} />
+                )}
+                <h4 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>
+                  {isTextLoading ? 'Analyzing document text locally…' : 'No document text found'}
+                </h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '480px', margin: '0 auto' }}>
+                  {isTextLoading
+                    ? 'Extracting text streams and computing NLP classifications in memory. Results will appear momentarily.'
+                    : 'If this is an image-only or scanned document without embedded text, run OCR first.'}
+                </p>
+              </div>
+            ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Type Card */}
               <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -311,6 +345,7 @@ ${analysis.importantDates.join(', ') || 'None'}
                 </div>
               )}
             </div>
+            )
           )}
 
           {activeTab === 'chat' && (
@@ -421,6 +456,44 @@ ${analysis.importantDates.join(', ') || 'None'}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'raw' && (
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Full extracted document text used for AI analysis and semantic queries.
+                </p>
+                {documentText && (
+                  <button
+                    onClick={() => navigator.clipboard.writeText(documentText)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ fontSize: '12px' }}
+                  >
+                    Copy All Text
+                  </button>
+                )}
+              </div>
+              <textarea
+                readOnly
+                value={documentText || 'No text content available in this document. If this document consists of scanned images, run OCR to extract text.'}
+                style={{
+                  flex: 1,
+                  minHeight: '360px',
+                  width: '100%',
+                  padding: '14px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-medium)',
+                  background: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  lineHeight: '1.6',
+                  resize: 'none',
+                  outline: 'none',
+                }}
+              />
             </div>
           )}
         </div>

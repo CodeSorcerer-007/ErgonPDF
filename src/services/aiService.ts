@@ -171,36 +171,66 @@ export class AIService {
    * Generates heuristic summaries, key points, and action items
    */
   private static extractSummariesAndActions(documentText: string) {
-    const sentences = documentText
+    const rawSentences = documentText
       .split(/[.!?]+/)
       .map((sentence) => sentence.trim())
-      .filter((sentence) => sentence.length > 25 && sentence.length < 240);
+      .filter((sentence) => sentence.length > 20 && sentence.length < 300);
 
-    const summarySentences = sentences.slice(0, 3);
+    // Filter sentences longer than 40 characters for summary, prioritizing semantically significant ones
+    const candidateSummary = rawSentences.filter((s) => s.length >= 40);
+    const pool = candidateSummary.length >= 2 ? candidateSummary : rawSentences;
+    
+    // Pick top 5 sentences that appear most semantically informative
+    const summarySentences = pool
+      .slice(0, 10)
+      .sort((a, b) => {
+        const score = (str: string) => {
+          let pts = 0;
+          const lower = str.toLowerCase();
+          if (lower.includes('agreement') || lower.includes('contract') || lower.includes('service') || lower.includes('shall') || lower.includes('term')) pts += 3;
+          if (str.length >= 50 && str.length <= 180) pts += 2;
+          return pts;
+        };
+        return score(b) - score(a);
+      })
+      .slice(0, 5);
+
     const summary = summarySentences.length > 0
       ? summarySentences.join('. ') + '.'
       : 'Document content analyzed. Use the interactive queries below to extract specific findings.';
 
-    const keyPoints = sentences
-      .filter((sentence) => {
-        const lowerSentence = sentence.toLowerCase();
-        return (
-          lowerSentence.includes('important') ||
-          lowerSentence.includes('key') ||
-          lowerSentence.includes('shall') ||
-          lowerSentence.includes('requires') ||
-          lowerSentence.includes('total') ||
-          lowerSentence.includes('conclude') ||
-          lowerSentence.includes('note')
-        );
-      })
-      .slice(0, 5);
+    const keyPointsRaw: string[] = [];
+    rawSentences.forEach((sentence) => {
+      const trimmed = sentence.trim();
+      const lowerSentence = trimmed.toLowerCase();
+      if (
+        lowerSentence.includes('important') ||
+        lowerSentence.includes('key') ||
+        lowerSentence.includes('shall') ||
+        lowerSentence.includes('requires') ||
+        lowerSentence.includes('total') ||
+        lowerSentence.includes('conclude') ||
+        lowerSentence.includes('note')
+      ) {
+        if (!keyPointsRaw.includes(trimmed)) {
+          keyPointsRaw.push(trimmed);
+        }
+      }
+    });
 
-    if (keyPoints.length < 3 && sentences.length >= 3) {
-      keyPoints.push(...sentences.slice(3, 7));
+    if (keyPointsRaw.length < 3 && rawSentences.length >= 3) {
+      for (const s of rawSentences.slice(0, 8)) {
+        const trimmed = s.trim();
+        if (!keyPointsRaw.includes(trimmed) && trimmed.length >= 30) {
+          keyPointsRaw.push(trimmed);
+        }
+        if (keyPointsRaw.length >= 5) break;
+      }
     }
 
-    const actionItems = sentences
+    const keyPoints = Array.from(new Set(keyPointsRaw.map((s) => s.trim()))).slice(0, 5);
+
+    const actionItems = rawSentences
       .filter((sentence) => {
         const lowerSentence = sentence.toLowerCase();
         return (
@@ -212,11 +242,12 @@ export class AIService {
           lowerSentence.includes('payment')
         );
       })
+      .map((s) => s.trim())
       .slice(0, 5);
 
     return {
       summary,
-      keyPoints: keyPoints.slice(0, 5),
+      keyPoints,
       actionItems: actionItems.length > 0 ? actionItems : ['Review document details and archive.'],
     };
   }

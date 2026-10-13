@@ -1,338 +1,340 @@
-<p align="center">
-  <img src="public/favicon.svg" alt="ErgonPDF Logo" width="80" height="80" />
-</p>
+# ErgonPDF
 
-<h1 align="center">ErgonPDF</h1>
+**The Open-Source, Privacy-First Client-Side Document Workspace.**
 
-<p align="center">
-  <strong>The Open-Source, Privacy-First All-in-One PDF Workspace.</strong><br>
-  <em>Organize, edit, compress, sign, convert, and understand documents with zero server uploads and lightning-fast local performance.</em>
-</p>
-
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-quickstart">Quickstart</a> •
-  <a href="#-usage-examples">Usage Examples</a> •
-  <a href="#-api-documentation">API Docs</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-docker--self-hosting">Self-Hosting</a> •
-  <a href="#-verification--testing">Testing</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
-  <a href="LICENSE">License</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT" />
-  <img src="https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Processing-100%25%20Local%20(WASM)-10b981?style=flat-square" alt="100% Local" />
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker" alt="Docker Ready" />
-  <img src="https://img.shields.io/badge/Tests-84%20Smoke%20%7C%2019%20Engine-brightgreen.svg?style=flat-square" alt="Tests: 100% Pass" />
-</p>
+ErgonPDF is a comprehensive document utility suite that processes, optimizes, secures, and analyzes PDF files entirely within the user's browser runtime. By executing document transformations via WebAssembly and Web Workers, ErgonPDF eliminates file uploads to remote servers, providing total data confidentiality and instant operational performance.
 
 ---
 
-## 🌟 Overview
-
-Most online PDF utilities require you to upload sensitive contracts, tax returns, medical charts, and financial statements to third-party cloud servers. They often impose restrictive file size limits, rate limits, countdown timers, and intrusive advertisements.
-
-**ErgonPDF is built differently.**
-
-ErgonPDF executes **100% in your web browser**. Your documents are never uploaded to any remote server. Every PDF mutation, page split, OCR scan, watermark, and cryptographic operation is computed in memory using WebAssembly, Web Workers, and HTML5 Canvas.
-
-### Why Choose ErgonPDF?
-- 🔒 **100% Client-Side Privacy**: Zero files or byte buffers ever leave your machine.
-- ⚡ **Instant & Offline**: Operates without network connectivity once loaded in your browser cache.
-- 🛡️ **Zero Tracking & No Accounts**: No sign-ups, subscriptions, watermarks on output, or paywalls.
-- 🎨 **Modern Human-Centered Design**: Fluid Obsidian dark & Slate light themes, responsive layout, drag-and-drop workflow, and instant command palette (`Ctrl/Cmd + K`).
-- 🧠 **Built-in AI & Document Intelligence**: Instant summaries, contract risk highlights, action item extraction, flashcard generator, and interactive Q&A citations.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![Processing: 100% Local](https://img.shields.io/badge/Processing-100%25%20Local%20(WASM)-10b981?style=flat-square)](https://webassembly.org/)
+[![Docker: Ready](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker)](Dockerfile)
+[![Engine Integrity: 100% Pass](https://img.shields.io/badge/Engine%20Tests-20%2F20%20Pass-brightgreen.svg?style=flat-square)](scripts/test-features.js)
+[![Smoke Tests: 85 Endpoints](https://img.shields.io/badge/Smoke%20Tests-85%2F85%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
 
 ---
 
-## 🛠️ Features
+## Table of Contents
 
-| Category | Available Tools | Engine Processing |
+- [Overview](#overview)
+- [Privacy Guarantee](#privacy-guarantee)
+- [Feature Directory](#feature-directory)
+- [User & Deployment Guide](docs/HOW_TO_USE.md)
+- [Quickstart](#quickstart)
+- [Architecture](#architecture)
+- [Usage Examples](#usage-examples)
+- [API Documentation](#api-documentation)
+- [Self-Hosting and Container Deployment](#self-hosting-and-container-deployment)
+- [Verification and Testing](#verification-and-testing)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
+## Overview
+
+Traditional online PDF services require users to transmit sensitive legal contracts, tax records, medical charts, and financial statements to remote cloud infrastructure. This model introduces substantial data compliance risks, bandwidth bottlenecks, arbitrary file size caps, queue delays, and commercial subscription gating.
+
+ErgonPDF takes a fundamentally different engineering approach:
+
+- **100% Client-Side Execution**: Every document transformation, page split, rasterization, OCR recognition pass, and cryptographic hash is computed directly in local machine memory using WebAssembly, Web Workers, and HTML5 Canvas.
+- **Hardware-Efficient Performance**: Operations execute with zero network transit overhead, providing near-instantaneous page manipulation and download delivery.
+- **Offline Capable**: Once assets are cached by the browser, the application operates independently without an active internet connection.
+- **Zero User Tracking**: No accounts, authentication walls, watermarked output, analytics trackers, or usage throttles.
+- **Integrated Document Intelligence**: In-memory heuristic NLP classification, entity extraction, executive summaries, actionable item parsing, study flashcard generation, and citation-backed question answering.
+
+---
+
+## Privacy Guarantee
+
+ErgonPDF guarantees complete data sovereignty:
+
+1. **Zero Server Ingestion**: Document bytes never traverse external networks or cloud APIs. All buffers exist temporarily in browser memory and are reclaimed upon session termination.
+2. **Zero Persistent Tracking**: No centralized databases, third-party analytics scripts, tracking beacons, or telemetry services exist in the code.
+3. **Local Cryptographic Isolation**: File protection, user and owner passwords, and AES-256 encryption keys are derived and applied locally via standard WebCrypto primitives and WebAssembly cryptographic implementations.
+
+---
+
+## Feature Directory
+
+ErgonPDF organizes 43 precision utilities across six operational intent groups:
+
+| Workflow Category | Included Utilities | Processing Engine & Execution Mode |
 | :--- | :--- | :--- |
-| **Organize** | Merge PDFs, Split into Ranges, Visual Drag-and-Drop Page Reorder, Rotate (90°/180°/270°), Delete Pages, Duplicate, Reverse Pages | 100% Local (pdf-lib) |
-| **Layout & Print** | 2-in-1 Page Halving, N-Up Multi-Page Imposition (2, 4, 9, 16 per sheet), Saddle-Stitch Booklet Creator, Crop Margins, Resize (A4, A3, Letter, Legal) | 100% Local (pdf-lib) |
-| **Compression** | Lossless (stream defragmentation & metadata purge), Balanced (144 DPI), Max (96 DPI), Grayscale downsampler with automatic size safety fallback | 100% Local |
-| **Sign & Fill** | Smooth digital signature drawing pad, stylized cursive font generator, PNG signature upload, interactive text boxes & checkboxes | 100% Local |
-| **Security & Privacy** | AES-256 password encryption, permissions locking (prevent print/copy), metadata sanitizer, permanent blackout redaction | 100% Local (AES-256) |
-| **Conversion** | PDF to high-res PNG / JPEG / WebP, Multi-Image photos to PDF builder, PDF to Microsoft Word (`.doc`), Tabular data to CSV | 100% Local |
-| **Stamps & Numbers** | Diagonal/horizontal text watermarks (custom color, opacity, angle), formatted sequential page numbers (headers/footers), dynamic QR codes | 100% Local |
-| **OCR & Scan** | In-browser Tesseract Web Worker OCR to extract searchable text from scanned images and PDFs without server leaks | 100% Local (WASM OCR) |
-| **AI Studio** | Local heuristic document classifier (contracts, invoices, resumes, academic), executive summary, action items, flashcards, semantic QA with page citations | 100% In-Memory |
+| **Assemble & Arrange** | Merge PDFs, Split Page Ranges, Drag-and-Drop Page Reordering, Rotate (90°, 180°, 270°), Delete Pages, Duplicate Pages, Reverse Sequences | 100% In-Browser (pdf-lib) |
+| **Imposition & Print** | 2-in-1 Page Halving, N-Up Sheet Imposition (2, 4, 9, 16 per page), Saddle-Stitch Booklet Assembly, Margin Crop, Dimension Standardization (A4, A3, Letter, Legal) | 100% In-Browser (pdf-lib) |
+| **Compress & Optimize** | Lossless Optimization (stream defragmentation and metadata purging), Adaptive Raster Downsampling (Balanced 144 DPI, Compact 96 DPI, Grayscale), Linearized Fast Web View | 100% In-Browser (Canvas + pdf-lib) |
+| **Sign, Annotate & Watermark** | Freehand Drawing Pad, Stylized Typographic Signature Generator, Transparent Stamp Overlay, Semi-Transparent Text Watermarks, Dynamic Header/Footer Page Numbering | 100% In-Browser (Canvas + pdf-lib) |
+| **Security & Privacy** | AES-256 Encryption & Permission Restrictions, Metadata Scrubbing, Permanent Visual Blackout Redaction, Cryptographic Passphrase Generation | 100% In-Browser (@pdfsmaller/pdf-encrypt + WebCrypto) |
+| **Convert & Extract** | High-Resolution Image Export (PNG, JPEG, WebP), Multi-Image to PDF Builder, Microsoft Word Export (`.doc`), Tabular Stream to Structured CSV, Vector Text Stream Dump | 100% In-Browser (PDF.js + JSZip) |
+| **Intelligence & Capture** | Multi-Threaded Tesseract OCR, Webcam Document Capture, Sandboxed HTML/Webpage Converter, Heuristic NLP Summarization, Entity Parser, Interactive Q&A Citations | 100% In-Browser (Tesseract.js Worker + Heuristic NLP) |
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### Prerequisites
-- **Node.js**: Version 18 or higher (Node 20 or 22 LTS recommended)
-- **Package Manager**: `npm`, `pnpm`, or `yarn`
+- **Node.js**: Version 18.0.0 or higher (Node 20 or 22 LTS recommended)
+- **npm**: Version 9.0.0 or higher
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/CodeSorcerer-007/ErgonPDF.git
-cd ErgonPDF
-```
+### Installation
 
-### 2. Install Dependencies
-```bash
-npm install
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/CodeSorcerer-007/ErgonPDF.git
+   cd ErgonPDF
+   ```
 
-### 3. Start Development Server
-```bash
-npm run dev
-```
-Open your browser and navigate to `http://localhost:5173`.
+2. Install pinned dependencies:
+   ```bash
+   npm install
+   ```
 
-### 4. Build for Production
-```bash
-npm run build
-npm run preview
-```
-The production bundle is compiled into the `dist/` folder and served locally at `http://localhost:4173`.
+3. Launch the development server:
+   ```bash
+   npm run dev
+   ```
+   Open `http://localhost:5173` in your browser.
 
----
-
-## 🐳 Docker & Self-Hosting
-
-You can run ErgonPDF as a self-contained web container on your home lab, internal enterprise intranet, or private VPS:
-
-### Using Docker Compose (Recommended)
-```bash
-docker compose up -d
-```
-The workspace will immediately be accessible at `http://localhost:8080`.
-
-### Using the Docker CLI
-```bash
-# Build Docker image
-docker build -t ergonpdf:latest .
-
-# Run container on port 8080
-docker run -d -p 8080:80 --name ergonpdf ergonpdf:latest
-```
+4. Compile for production:
+   ```bash
+   npm run build
+   npm run preview
+   ```
+   The compiled distribution will be hosted locally at `http://localhost:4173`.
 
 ---
 
-## 💡 Usage Examples
+## Architecture
 
-### Example 1: Merge Multiple PDFs (UI)
-1. Launch ErgonPDF in your browser.
-2. Click **Merge PDF** on the homepage or press `Ctrl + K` and type `merge`.
-3. Drag and drop your PDF files into the modal.
-4. Drag files to adjust their order or remove unwanted documents.
-5. Click **Merge PDFs** — your unified document downloads immediately.
+ErgonPDF employs a layered frontend architecture that strictly decouples UI state from binary transformation services.
+
+```text
++---------------------------------------------------------------+
+|                        Browser Runtime                        |
+|                     React 19 + TypeScript                     |
++---------------------------------------------------------------+
+                                |
+        +-----------------------+-----------------------+
+        |                                               |
+        v                                               v
++-------------------------------+               +-------------------------------+
+|      Universal Workspace      |               |        Command Palette        |
+|  - Viewport & Canvas Layers   |               |  - Ctrl/Cmd + K Intent Parser |
+|  - Modular Tool Action Panels |               |  - Global Action Dispatcher   |
+|  - Drag-and-Drop Thumbnails   |               |  - Direct Tool Navigation     |
++-------------------------------+               +-------------------------------+
+        |                                               |
+        +-----------------------+-----------------------+
+                                |
+                                v
++---------------------------------------------------------------+
+|                   Engine Service Abstraction                  |
+|                                                               |
+|  PDFEngineService (Static, Stateless Document Transformations)|
+|  AIService        (In-Memory NLP & Entity Recognition)        |
+|  OCRService       (Sandboxed Tesseract Web Worker Engine)     |
+|  StorageService   (Namespaced Local Storage & DPI Preference) |
+|  QRGenerator      (Two-Dimensional Matrix Rendering)          |
++---------------------------------------------------------------+
+                                |
+                                v
++---------------------------------------------------------------+
+|                   Core Binary Libraries (WASM)                |
+|                                                               |
+|  • pdf-lib               : Structural Assembly & Mutation     |
+|  • pdfjs-dist            : Canvas Rendering & Text Extraction |
+|  • @pdfsmaller/pdf-encrypt: AES-256 Permissions Handler       |
+|  • tesseract.js          : Optical Character Recognition      |
+|  • jszip                 : Binary Archive Packaging           |
++---------------------------------------------------------------+
+```
+
+For detailed architecture diagrams, component trees, data flow lifecycles, and security headers, consult [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ---
 
-### Example 2: Programmatic Usage with `PDFEngineService` (TypeScript)
-You can directly import and use the underlying engine in your own frontend or Node applications:
+## Usage Examples
+
+### 1. Document Merging (UI Workflow)
+1. Navigate to the application home screen.
+2. Select **Merge PDF** from the directory or press `Ctrl + K` and enter `merge`.
+3. Select or drop multiple PDF files into the modal dropzone.
+4. Drag individual file cards to configure the desired output order.
+5. Click **Merge PDFs** to instantly synthesize and download the combined document.
+
+---
+
+### 2. Programmatic Processing via `PDFEngineService` (TypeScript)
+`PDFEngineService` exposes over 30 static methods that can be integrated into custom workflows:
 
 ```typescript
-import { PDFEngineService } from './services/pdfEngine';
+import { PDFEngineService } from './src/services/pdfEngine';
 
-// 1. Merge two PDF ArrayBuffers
-const mergedPdfBytes = await PDFEngineService.mergeDocuments([
-  fileBufferA,
-  fileBufferB,
+// Step A: Concatenate multiple document buffers
+const mergedBytes: Uint8Array = await PDFEngineService.mergeDocuments([
+  sourceBufferA,
+  sourceBufferB,
 ]);
 
-// 2. Compress a PDF with automatic size safeguard
-const { data, originalSize, compressedSize, savingsPercent } = 
-  await PDFEngineService.compressDocument(fileBuffer, {
-    level: 'balanced',
-    removeMetadata: true,
-  });
-console.log(`Saved ${savingsPercent}%: ${originalSize}B -> ${compressedSize}B`);
-
-// 3. Encrypt a PDF with AES-256
-const encryptedBytes = await PDFEngineService.encryptDocument(
-  fileBuffer,
-  'SecretPassword123!', // User password
-  'AdminPassword456!'  // Owner permissions password
-);
-
-// 4. Add a Watermark
-const watermarkedBytes = await PDFEngineService.addWatermark(fileBuffer, {
-  text: 'CONFIDENTIAL',
-  fontSize: 48,
-  opacity: 0.3,
-  rotation: 45,
-  color: 'red',
-  pages: 'all',
-});
-
-// 5. Impose 2 pages per sheet (N-Up printing)
-const nUpBytes = await PDFEngineService.nUpImposition(fileBuffer, {
-  pagesPerSheet: 2,
-  orientation: 'auto',
-  addBorder: true,
-});
-```
-
----
-
-### Example 3: In-Browser Local OCR (TypeScript)
-Extract searchable text from image scans without sending data to any external API:
-
-```typescript
-import { OCRService } from './services/ocrService';
-
-const result = await OCRService.recognizeImage(
-  imageBlobOrCanvas,
-  'eng',
-  (status, progress) => {
-    console.log(`OCR Progress: ${(progress * 100).toFixed(0)}% (${status})`);
+// Step B: Apply dynamic page numbers and watermarks
+const numberedBytes: Uint8Array = await PDFEngineService.addPageNumbers(
+  mergedBytes.buffer,
+  {
+    position: 'bottom-center',
+    format: 'Page {n} of {total}',
+    fontSize: 10,
+    startFrom: 1,
   }
 );
 
-console.log(`Recognized text (${result.confidence}% confidence):`);
-console.log(result.text);
+// Step C: Compress lossless with metadata removal
+const compressedBytes: Uint8Array = await PDFEngineService.compressLossless(
+  numberedBytes.buffer,
+  true // Strip document metadata
+);
+
+// Step D: Apply AES-256 password protection
+const protectedBytes: Uint8Array = await PDFEngineService.encryptDocument(
+  compressedBytes,
+  'UserPassphrase123!',
+  'OwnerAdminPassphrase456!'
+);
 ```
 
 ---
 
-### Example 4: Document Intelligence & Semantic QA (TypeScript)
+### 3. Client-Side OCR Extraction (TypeScript)
+Perform Optical Character Recognition on image documents without transmitting data to external APIs:
+
 ```typescript
-import { AIService } from './services/aiService';
+import { OCRService } from './src/services/ocrService';
 
-// Extract full text from PDF
-const { text, pages } = await PDFEngineService.extractFullText(pdfBuffer);
+const ocrResult = await OCRService.recognizeImage(
+  scannedImageBlob,
+  'eng',
+  (status: string, progress: number) => {
+    console.log(`OCR Progress: ${(progress * 100).toFixed(0)}% [${status}]`);
+  }
+);
 
-// Analyze document type, extract amounts, dates, action items
-const analysis = AIService.analyzeDocumentLocally(text);
-console.log(`Document Type: ${analysis.type} (${analysis.confidence * 100}% confidence)`);
-console.log('Action Items:', analysis.actionItems);
-console.log('Financial Entities:', analysis.financialEntities);
-
-// Query the document with page citations
-const response = AIService.answerQuery('What are the payment terms?', pages);
-console.log(response.answer);
-console.log('Cited Pages:', response.pageReferences);
+console.log(`Extraction Confidence: ${ocrResult.confidence}%`);
+console.log('Extracted Plaintext:', ocrResult.text);
 ```
 
 ---
 
-## 📖 API Documentation
+### 4. Document Intelligence & Semantic Q&A (TypeScript)
+```typescript
+import { PDFEngineService } from './src/services/pdfEngine';
+import { AIService } from './src/services/aiService';
 
-ErgonPDF provides an OpenAPI 3.0.3 specification documenting all client engine operations and self-hosted microservice endpoints.
+// Extract unicode text stream from PDF
+const { fullText, pageTexts } = await PDFEngineService.extractFullText(documentBuffer);
 
-- **OpenAPI Specification**: [`docs/openapi.yaml`](docs/openapi.yaml)
-- **Available Operations**:
-  - `POST /pdf/inspect`: Extract metadata, page count, and page thumbnails.
-  - `POST /pdf/merge`: Concatenate multiple PDFs into a unified file.
-  - `POST /pdf/split`: Extract specified page ranges or individual pages.
-  - `POST /pdf/compress`: Adaptive lossless or raster downsampling with size safeguard.
-  - `POST /pdf/watermark`: Apply diagonal/horizontal text stamps.
-  - `POST /pdf/page-numbers`: Stamp headers/footers (`Page 1 of n`, `- 1 -`).
-  - `POST /pdf/halve`: Split 2-in-1 scanned spreads down the center.
-  - `POST /pdf/nup`: Impose 2, 4, 9, or 16 pages onto single sheets.
-  - `POST /pdf/booklet`: Saddle-stitch booklet imposition layout.
-  - `POST /pdf/crop`: Non-destructive percentage-based page margin trimming.
-  - `POST /pdf/resize`: Standardize to A4, A3, Letter, or Legal dimensions.
-  - `POST /pdf/alternate-mix`: Interleave odd/even pages from duplex scans.
-  - `POST /pdf/encrypt`: AES-256 password protection & permission locking.
-  - `POST /pdf/repair`: Reconstruct corrupted cross-reference streams.
+// Run local heuristic classification and entity parsing
+const analysis = AIService.analyzeDocumentLocally(fullText, pageTexts);
+console.log(`Document Genre: ${analysis.documentType}`);
+console.log('Actionable Tasks:', analysis.actionItems);
+console.log('Discovered Financial Entities:', analysis.entities.filter(e => e.type === 'amount'));
+
+// Execute citation-backed question answering
+const queryResult = AIService.answerQuery('What are the termination liabilities?', pageTexts);
+console.log('Generated Response:', queryResult.answer);
+console.log('Referenced Page Numbers:', queryResult.pageReferences);
+```
+
+---
+
+## API Documentation
+
+ErgonPDF maintains a complete OpenAPI 3.0.3 specification documenting all document processing operations, schemas, input bounds, and error models.
+
+- **Specification File**: [docs/openapi.yaml](docs/openapi.yaml)
+- **Supported Operations**:
+  - `POST /pdf/inspect`: Extract metadata catalog, page counts, and dimension previews.
+  - `POST /pdf/merge`: Concatenate arbitrary arrays of PDF streams.
+  - `POST /pdf/split`: Partition documents into discrete page ranges.
+  - `POST /pdf/compress`: Lossless object defragmentation and raster downsampling.
+  - `POST /pdf/watermark`: Stamp rotated semi-transparent text banners.
+  - `POST /pdf/page-numbers`: Inject sequential pagination headers or footers.
+  - `POST /pdf/halve`: Bisect landscape dual-page spreads into portrait sheets.
+  - `POST /pdf/nup`: Impose multi-page grids onto standard sheets.
+  - `POST /pdf/booklet`: Saddle-stitch booklet signature generation.
+  - `POST /pdf/crop`: Margin adjustments via `/MediaBox` and `/CropBox`.
+  - `POST /pdf/resize`: Scale pages proportionally to standard dimensions.
+  - `POST /pdf/alternate-mix`: Interleave duplex document streams.
+  - `POST /pdf/encrypt`: Apply AES-256 standard encryption handlers.
+  - `POST /pdf/repair`: Reconstruct corrupted cross-reference tables.
   - `POST /pdf/web-optimize`: Linearize streams for Fast Web View.
-  - `POST /pdf/pdfa`: ISO 19005-1 compliant PDF/A-1b metadata stamping.
-  - `POST /ocr/recognize`: In-browser Tesseract OCR text extraction.
-  - `POST /ai/analyze`: Heuristic document classification and entity extraction.
-  - `POST /ai/query`: Semantic QA with page citation snippets.
-  - `GET /health`: Engine status and readiness probe.
+  - `POST /pdf/pdfa`: Embed ISO 19005-1 (PDF/A-1b) archival metadata profiles.
+  - `POST /ocr/recognize`: Multi-threaded Web Worker OCR text extraction.
+  - `POST /ai/analyze`: Local heuristic document classification and entity discovery.
+  - `POST /ai/query`: Semantic document search with page citations.
+  - `GET /health`: Operational readiness probe.
 
 ---
 
-## 🏗️ Architecture
+## Self-Hosting and Container Deployment
 
+ErgonPDF can be self-hosted in any intranet, air-gapped laboratory, or containerized cloud environment. For complete deployment strategies (including Cloudflare Pages, Vercel, Netlify, and custom Nginx setups), consult the [User & Deployment Guide](docs/HOW_TO_USE.md).
+
+### Using Docker Compose
+```bash
+docker compose up -d
 ```
-                                +---------------------------+
-                                |      Browser Client       |
-                                |  (React 19 + TypeScript)  |
-                                +---------------------------+
-                                              |
-                   +--------------------------+--------------------------+
-                   |                                                     |
-                   v                                                     v
-      +-------------------------+                           +-------------------------+
-      |   Universal Workspace   |                           |    Command Palette      |
-      |   - Canvas Rendering    |                           |    - Cmd/Ctrl + K       |
-      |   - Signature Placement |                           |    - Intent Search      |
-      |   - Redaction Layers    |                           |    - Tool Navigation    |
-      +-------------------------+                           +-------------------------+
-                   |                                                     |
-                   +--------------------------+--------------------------+
-                                              |
-                                              v
-      +--------------------------------------------------------------------------------+
-      |                         ErgonPDF Engine Layer (WASM/JS)                        |
-      |                                                                                |
-      |  • pdf-lib               : DOM parsing, page mutations, stamping, booklet      |
-      |  • pdfjs-dist            : Canvas rasterization, viewport scaling, text layer  |
-      |  • @pdfsmaller/pdf-encrypt: AES-256 cryptographic security & permissions       |
-      |  • tesseract.js          : Multi-threaded Web Worker OCR                       |
-      |  • jszip                 : Multi-file batch bundling and archive exports       |
-      +--------------------------------------------------------------------------------+
-                                              |
-                                              v
-                              +--------------------------------+
-                              |      Zero Network Leakage      |
-                              |  100% In-Memory RAM Execution  |
-                              +--------------------------------+
+The application will be accessible at `http://localhost:8080`.
+
+### Using the Docker CLI
+```bash
+# Build production image
+docker build -t ergonpdf:1.2.0 .
+
+# Execute container under non-root unprivileged user
+docker run -d -p 8080:80 --name ergonpdf ergonpdf:1.2.0
 ```
+
+### Container Health Probes
+- **Liveness Probe**: `GET http://localhost:8080/healthz` (returns `200 OK`)
+- **Engine Status**: `GET http://localhost:8080/api/health` (returns JSON status payload)
 
 ---
 
-## 🧪 Verification & Testing
+## Verification and Testing
 
-ErgonPDF includes a comprehensive automated testing suite:
+ErgonPDF enforces a multi-tiered verification pipeline to ensure mathematical precision and stream integrity across all document transformations.
 
 ```bash
-# 1. Run linter with zero warnings tolerance
-npx oxlint --deny-warnings
+# 1. Static lint analysis with zero warnings tolerance
+npm run lint
 
-# 2. Run TypeScript build verification
+# 2. Strict TypeScript compilation and Vite production bundling
 npm run build
 
-# 3. Run PDF Engine Feature Integrity Suite (19 tests)
-node scripts/test-features.js
+# 3. PDF Engine Feature Integrity Suite (20 end-to-end engine tests)
+npm run test-features
 
-# 4. Run Accuracy & Efficiency Benchmark
-node scripts/calculate-accuracy-and-efficiency.js
-
-# 5. Run Full Application Smoke Test Suite (84 endpoints and tests)
-node scripts/smoke-test.js
+# 4. HTTP Application Smoke Test Suite (85 endpoint assertions)
+npm run smoke-test
 ```
 
-### Test Suite Results
-- **Engine Feature Suite**: 19/19 tests passed (100%)
-- **Application Smoke Suite**: 84/84 tests passed (100%)
-- **Accuracy Benchmark**: 100.0% precision, 50.81ms mean latency
-
----
-
-## 🤝 Contributing
-
-We welcome community contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for development practices, pull request workflows, and coding standards.
-
+### Automated Benchmark Verification
+To measure execution throughput, memory stability, and transformation latency:
 ```bash
-# 1. Fork and clone the repository
-git clone https://github.com/CodeSorcerer-007/ErgonPDF.git
-
-# 2. Create your feature branch
-git checkout -b feature/awesome-feature
-
-# 3. Commit your changes
-git commit -m "feat: add awesome-feature"
-
-# 4. Push to branch and open a Pull Request
-git push origin feature/awesome-feature
+node scripts/calculate-accuracy-and-efficiency.js
 ```
 
 ---
 
-## 📄 License
+## Contributing
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+We welcome contributions from developers, designers, and documentation authors. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for development workflows, branch naming conventions, and pull request criteria. All participants are expected to adhere to our [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+Security inquiries should follow the protocols outlined in [SECURITY.md](SECURITY.md).
+
+---
+
+## License
+
+ErgonPDF is open-source software licensed under the [MIT License](LICENSE).

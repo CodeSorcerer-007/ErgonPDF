@@ -55,7 +55,16 @@ export const Header: React.FC<HeaderProps> = ({
     }}>
       {/* Brand: Warm Swiss Editorial Wordmark */}
       <div 
+        role="button"
+        tabIndex={0}
+        aria-label="ErgonPDF home"
         onClick={onNavigateHome}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onNavigateHome();
+          }
+        }}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -102,7 +111,7 @@ export const Header: React.FC<HeaderProps> = ({
             PDF
           </span>
           <span className="badge" style={{ fontSize: '10px', marginLeft: '4px' }}>
-            v1.0
+            v1.2.0
           </span>
         </div>
       </div>
@@ -112,12 +121,14 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onNavigateHome}
           className="btn btn-ghost btn-sm"
+          aria-label="View document tools directory"
         >
           Tools
         </button>
         <button 
           onClick={onOpenAiStudio}
           className="btn btn-ghost btn-sm"
+          aria-label="Open AI Document Studio"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
           <Sparkles size={13} strokeWidth={1.6} />
@@ -126,6 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onOpenBatch}
           className="btn btn-ghost btn-sm"
+          aria-label="Open Batch Processing Queue"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
           <Layers size={13} strokeWidth={1.6} />
@@ -134,6 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onOpenCompare}
           className="btn btn-ghost btn-sm"
+          aria-label="Open Document Compare Viewer"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
           <GitCompare size={13} strokeWidth={1.6} />
@@ -142,6 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onOpenDocs}
           className="btn btn-ghost btn-sm"
+          aria-label="Open Architecture and API Documentation"
           style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
         >
           <BookOpen size={13} strokeWidth={1.6} />
@@ -155,6 +169,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button 
           onClick={onOpenCommandPalette}
           className="btn btn-secondary btn-sm"
+          aria-label="Search tools or commands (Ctrl + K)"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -196,7 +211,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onToggleTheme}
           className="btn btn-ghost btn-icon"
           title={`Switch to ${currentTheme === 'dark' ? 'Light' : 'Dark'} mode`}
-          aria-label="Toggle theme"
+          aria-label={`Switch to ${currentTheme === 'dark' ? 'Light' : 'Dark'} mode`}
         >
           {currentTheme === 'dark' ? <Sun size={15} strokeWidth={1.6} /> : <Moon size={15} strokeWidth={1.6} />}
         </button>
@@ -206,7 +221,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenSettings}
           className="btn btn-ghost btn-icon"
           title="Workspace Settings"
-          aria-label="Settings"
+          aria-label="Open Workspace Settings"
         >
           <SettingsIcon size={15} strokeWidth={1.6} />
         </button>
@@ -218,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
           rel="noopener noreferrer"
           className="btn btn-ghost btn-icon"
           title="Open Source Repository on GitHub"
-          aria-label="GitHub Repository"
+          aria-label="ErgonPDF GitHub repository (opens in new tab)"
         >
           <GithubIcon size={15} />
         </a>

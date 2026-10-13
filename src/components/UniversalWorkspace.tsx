@@ -5,47 +5,15 @@ import {
   ZoomOut, 
   RotateCw, 
   RotateCcw, 
-  Trash2, 
-  Copy, 
   Undo, 
   Redo, 
   Download, 
   Sparkles, 
-  PenTool, 
-  ScanText, 
-  ShieldCheck, 
   Check, 
   Loader2, 
-  ArrowUp, 
-  ArrowDown, 
   ChevronLeft, 
-  ChevronRight, 
-  FileText,
-  Lock,
-  EyeOff,
-  Columns2,
-  Grid2X2,
-  BookOpen,
-  Crop,
-  Maximize2,
-  Images,
-  Table,
-  QrCode,
-  Shuffle,
-  CopyPlus,
-  Archive,
-  KeyRound,
-  Wrench,
-  Zap,
-  Scissors,
-  Layers,
-  CheckSquare,
-  Eye,
-  FolderDown,
-  FileCode,
-  RefreshCw
+  ChevronRight
 } from 'lucide-react';
-import JSZip from 'jszip';
 import type { 
   PDFDocumentState, 
   PDFPageInfo, 
@@ -61,8 +29,49 @@ import type {
 } from '../types/pdf';
 import { PDFEngineService } from '../services/pdfEngine';
 import { OCRService } from '../services/ocrService';
+import { StorageService } from '../services/storageService';
 import { SignatureModal } from './SignatureModal';
 import { AiStudioModal } from './AiStudioModal';
+import {
+  ThumbnailSidebar,
+  CompressTool,
+  OrganizeTool,
+  RotateTool,
+  RemovePagesTool,
+  ExtractPagesTool,
+  SplitTool,
+  FlattenTool,
+  RepairTool,
+  WebOptimizeTool,
+  ProtectTool,
+  UnlockTool,
+  RedactTool,
+  MetadataTool,
+  PasswordGeneratorTool,
+  SignTool,
+  WatermarkTool,
+  PageNumbersTool,
+  OverlayTool,
+  QRCodeTool,
+  CreateFormTool,
+  HalveTool,
+  NUpTool,
+  BookletTool,
+  AlternateMixTool,
+  CropTool,
+  ResizeTool,
+  RemoveBlankPagesTool,
+  ExtractImagesTool,
+  PdfToExcelTool,
+  PdfToImagesTool,
+  PdfToWordTool,
+  PdfToPdfATool,
+  ExtractTextTool,
+  OcrTool,
+  AnnotateTool,
+  ViewPdfTool,
+  AiChatTool,
+} from './workspace';
 import confetti from 'canvas-confetti';
 
 interface UniversalWorkspaceProps {
@@ -91,7 +100,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   const [placedSignatures, setPlacedSignatures] = useState<PlacedSignature[]>([]);
   const [redactions, setRedactions] = useState<RedactionBox[]>([]);
   const [isSigModalOpen, setIsSigModalOpen] = useState<boolean>(false);
-  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(activeToolId === 'ai-chat');
 
   // Drawing & Annotation States
   const [annotationColor, setAnnotationColor] = useState<string>('#f59e0b');
@@ -103,7 +112,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   // Advanced Compression State
   const [compressionPreset, setCompressionPreset] = useState<'lossless' | 'balanced' | 'max' | 'grayscale'>('balanced');
   const [compressionGrayscale, setCompressionGrayscale] = useState<boolean>(false);
-  const [compressionDpi, setCompressionDpi] = useState<number>(150);
+  const [compressionDpi, setCompressionDpi] = useState<number>(() => StorageService.getDefaultDpi());
   const [compressionQuality, setCompressionQuality] = useState<number>(0.7);
 
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>({
@@ -176,6 +185,35 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   const [ocrProgress, setOcrProgress] = useState<string>('');
   const [isOcrLoading, setIsOcrLoading] = useState<boolean>(false);
 
+  // Background full text extraction for AI Studio & Text tools
+  const [fullDocumentText, setFullDocumentText] = useState<string>('');
+  const [fullPageTexts, setFullPageTexts] = useState<{ pageNumber: number; text: string }[]>([]);
+  const [extractedBuffer, setExtractedBuffer] = useState<ArrayBuffer | null>(null);
+  const isExtractingText = Boolean(docState.arrayBuffer) && docState.arrayBuffer !== extractedBuffer;
+
+  useEffect(() => {
+    if (!docState.arrayBuffer) return;
+    let isCancelled = false;
+    PDFEngineService.extractFullText(docState.arrayBuffer)
+      .then((res) => {
+        if (!isCancelled) {
+          setFullDocumentText(res.text || '');
+          setFullPageTexts(res.pages || []);
+          setExtractedBuffer(docState.arrayBuffer);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) {
+          setFullDocumentText('');
+          setFullPageTexts([]);
+          setExtractedBuffer(docState.arrayBuffer);
+        }
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [docState.arrayBuffer]);
+
   // Processing & Feedback State
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStatus, setProcessingStatus] = useState<string>('');
@@ -191,6 +229,9 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   if (activeToolId && activeToolId !== prevActiveToolId) {
     setPrevActiveToolId(activeToolId);
     setCurrentToolTab(activeToolId);
+    if (activeToolId === 'ai-chat') {
+      setIsAiModalOpen(true);
+    }
   }
 
   // Render current page onto canvas
@@ -349,6 +390,15 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     newPages[targetIdx] = temp;
     pushHistory(newPages);
     setCurrentPageNum(targetIdx + 1);
+  };
+
+  const handleReorderPages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    const newPages = [...docState.pages];
+    const [moved] = newPages.splice(fromIndex, 1);
+    newPages.splice(toIndex, 0, moved);
+    pushHistory(newPages);
+    setCurrentPageNum(toIndex + 1);
   };
 
   // Add Placed Signature
@@ -715,154 +765,15 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         position: 'relative',
       }}>
         {/* Left Thumbnails Rail */}
-        <aside style={{
-          width: '240px',
-          background: 'var(--bg-card)',
-          borderRight: '1px solid var(--border-subtle)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
-          padding: '16px 12px',
-          gap: '12px',
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-              Pages ({activePages.length})
-            </span>
-          </div>
-
-          {docState.pages.map((page: PDFPageInfo, index: number) => {
-            if (page.deleted) return null;
-            const isSelected = index === currentPageNum - 1;
-
-            return (
-              <div
-                key={index}
-                onClick={() => setCurrentPageNum(index + 1)}
-                className="interactive-card"
-                style={{
-                  padding: '8px',
-                  cursor: 'pointer',
-                  borderRadius: 'var(--radius-md)',
-                  border: isSelected ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                  background: isSelected ? 'var(--bg-card)' : 'var(--bg-primary)',
-                  boxShadow: isSelected ? '0 0 0 1px var(--accent-primary), var(--shadow-xs)' : 'var(--shadow-xs)',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  transition: 'var(--transition-fast)',
-                }}
-              >
-                {/* Thumbnail Image */}
-                <div style={{
-                  height: '140px',
-                  background: '#ffffff',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  position: 'relative',
-                }}>
-                  {page.thumbnailUrl ? (
-                    <img 
-                      src={page.thumbnailUrl} 
-                      alt={`Page ${index + 1}`}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        transform: `rotate(${page.rotation}deg)`,
-                        transition: 'transform var(--transition-fast)',
-                      }}
-                    />
-                  ) : (
-                    <FileText size={28} strokeWidth={1.5} color="var(--text-muted)" />
-                  )}
-
-                  {/* Page number badge */}
-                  <span style={{
-                    position: 'absolute',
-                    bottom: '6px',
-                    left: '6px',
-                    background: 'rgba(22, 22, 22, 0.85)',
-                    color: '#ffffff',
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    fontWeight: 600,
-                    padding: '1px 6px',
-                    borderRadius: 'var(--radius-sm)',
-                  }}>
-                    {index + 1}
-                  </span>
-                </div>
-
-                {/* Page Quick Actions Bar */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingTop: '4px',
-                }}>
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMovePage(index, 'up');
-                      }}
-                      disabled={index === 0}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '3px' }}
-                      title="Move page up"
-                    >
-                      <ArrowUp size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleMovePage(index, 'down');
-                      }}
-                      disabled={index === docState.pages.length - 1}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '3px' }}
-                      title="Move page down"
-                    >
-                      <ArrowDown size={12} />
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDuplicatePage(index);
-                      }}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '3px' }}
-                      title="Duplicate page"
-                    >
-                      <Copy size={12} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePage(index);
-                      }}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '3px', color: 'var(--error)' }}
-                      title="Delete page"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </aside>
+        <ThumbnailSidebar
+          pages={docState.pages}
+          currentPageNum={currentPageNum}
+          onPageClick={(num) => setCurrentPageNum(num)}
+          onMovePage={handleMovePage}
+          onDuplicatePage={handleDuplicatePage}
+          onDeletePage={handleDeletePage}
+          onReorderPages={handleReorderPages}
+        />
 
         {/* Center Canvas Workspace */}
         <main style={{
@@ -1043,1903 +954,402 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               }}
             >
               <optgroup label="Compress & Optimize">
-                <option value="compress-pdf">🗜️ Compress PDF (Adaptive Engine)</option>
-                <option value="flatten-pdf">🥞 Flatten / Rasterize PDF</option>
-                <option value="repair-pdf">🔧 Repair Corrupted PDF</option>
-                <option value="web-optimize">⚡ Web Optimize (Linearize)</option>
+                <option value="compress-pdf">Compress PDF (Adaptive Engine)</option>
+                <option value="flatten-pdf">Flatten / Rasterize PDF</option>
+                <option value="repair-pdf">Repair Corrupted PDF</option>
+                <option value="web-optimize">Web Optimize (Linearize)</option>
               </optgroup>
 
               <optgroup label="Organize & Layout">
-                <option value="organize">📑 Organize & Reorder Pages</option>
-                <option value="rotate-pdf">🔄 Rotate Pages (CW / CCW / 180°)</option>
-                <option value="remove-pages">🗑️ Remove Pages (Odd / Even / Selection)</option>
-                <option value="extract-pages">📂 Extract Page Ranges</option>
-                <option value="split-pdf">✂️ Split PDF</option>
-                <option value="halve-pdf">📖 Halve 2-in-1 Spreads</option>
-                <option value="pages-per-sheet">📐 Pages per Sheet (N-Up)</option>
-                <option value="booklet-pdf">📚 Booklet Creator (Saddle-Stitch)</option>
-                <option value="alternate-mix">🔀 Alternate & Mix 2 PDFs</option>
-                <option value="crop-pdf">✂️ Crop Page Margins</option>
-                <option value="resize-pdf">📐 Resize Page Dimensions</option>
-                <option value="remove-blank-pages">✨ Remove Blank Pages</option>
+                <option value="organize">Organize & Reorder Pages</option>
+                <option value="rotate-pdf">Rotate Pages (CW / CCW / 180°)</option>
+                <option value="remove-pages">Remove Pages (Odd / Even / Selection)</option>
+                <option value="extract-pages">Extract Page Ranges</option>
+                <option value="split-pdf">Split PDF</option>
+                <option value="halve-pdf">Halve 2-in-1 Spreads</option>
+                <option value="pages-per-sheet">Pages per Sheet (N-Up)</option>
+                <option value="booklet-pdf">Booklet Creator (Saddle-Stitch)</option>
+                <option value="alternate-mix">Alternate & Mix 2 PDFs</option>
+                <option value="crop-pdf">Crop Page Margins</option>
+                <option value="resize-pdf">Resize Page Dimensions</option>
+                <option value="remove-blank-pages">Remove Blank Pages</option>
               </optgroup>
 
               <optgroup label="Edit, Annotate & Sign">
-                <option value="sign-pdf">✍️ Sign & Fill Document</option>
-                <option value="watermark-pdf">💧 Watermark PDF</option>
-                <option value="page-numbers">🔢 Add Page Numbers</option>
-                <option value="overlay-pdf">📑 Overlay Letterhead / Underlay</option>
-                <option value="qr-code-pdf">📱 Add Dynamic QR Code</option>
-                <option value="create-form">📝 Add Interactive Form Fields</option>
+                <option value="sign-pdf">Sign & Fill Document</option>
+                <option value="watermark-pdf">Watermark PDF</option>
+                <option value="page-numbers">Add Page Numbers</option>
+                <option value="overlay-pdf">Overlay Letterhead / Underlay</option>
+                <option value="qr-code-pdf">Add Dynamic QR Code</option>
+                <option value="create-form">Add Interactive Form Fields</option>
               </optgroup>
 
               <optgroup label="Security & Privacy">
-                <option value="protect-pdf">🔒 Protect with Password</option>
-                <option value="unlock-pdf">🔓 Unlock & Remove Password</option>
-                <option value="redact-pdf">⬛ Redact & Blackout</option>
-                <option value="metadata-scrubber">🛡️ Sanitize Document Metadata</option>
-                <option value="password-generator">🔑 Password Generator</option>
+                <option value="protect-pdf">Protect with Password</option>
+                <option value="unlock-pdf">Unlock & Remove Password</option>
+                <option value="redact-pdf">Redact & Blackout</option>
+                <option value="metadata-scrubber">Sanitize Document Metadata</option>
+                <option value="password-generator">Password Generator</option>
               </optgroup>
 
               <optgroup label="Convert & Extract">
-                <option value="extract-text">📄 Extract Full Text (.txt)</option>
-                <option value="pdf-to-word">📝 PDF to Word (.doc)</option>
-                <option value="pdf-to-excel">📊 PDF to Excel / CSV</option>
-                <option value="extract-images">🖼️ Extract Images to ZIP</option>
-                <option value="pdf-to-images">📸 Convert Pages to Images (ZIP)</option>
-                <option value="pdf-to-pdfa">🏛️ PDF to PDF/A Archival</option>
+                <option value="extract-text">Extract Full Text (.txt)</option>
+                <option value="pdf-to-word">PDF to Word (.doc)</option>
+                <option value="pdf-to-excel">PDF to Excel / CSV</option>
+                <option value="extract-images">Extract Images to ZIP</option>
+                <option value="pdf-to-images">Convert Pages to Images (ZIP)</option>
+                <option value="pdf-to-pdfa">PDF to PDF/A Archival</option>
               </optgroup>
 
               <optgroup label="OCR, View & AI">
-                <option value="ocr-pdf">🔍 Local OCR Recognition</option>
-                <option value="view-pdf">👁️ Fullscreen PDF Reader</option>
-                <option value="ai-chat">✨ AI Document Studio</option>
+                <option value="ocr-pdf">Local OCR Recognition</option>
+                <option value="view-pdf">Fullscreen PDF Reader</option>
+                <option value="ai-chat">AI Document Studio</option>
               </optgroup>
             </select>
           </div>
 
           {/* Contextual Controls */}
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-            {/* 1. COMPRESS TOOL (High-Performance Adaptive Engine) */}
             {currentToolTab === 'compress-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Adaptive PDF Compression
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Intelligent dual-mode compressor. Automatically preserves text vectors or downsamples images.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { id: 'lossless', label: 'Smart Lossless', desc: '0% visual loss, crisp text & vectors' },
-                    { id: 'balanced', label: 'Balanced (Recommended)', desc: '150 DPI JPEG, ~50-70% smaller' },
-                    { id: 'max', label: 'Maximum Compression', desc: '96 DPI JPEG, ~75-85% smaller' },
-                    { id: 'grayscale', label: 'Grayscale Scan Optimizer', desc: '8-bit luminance, 80-90% smaller' },
-                  ].map((preset) => (
-                    <div
-                      key={preset.id}
-                      onClick={() => {
-                        setCompressionPreset(preset.id as any);
-                        if (preset.id === 'grayscale') setCompressionGrayscale(true);
-                        if (preset.id === 'max') setCompressionDpi(96);
-                        if (preset.id === 'balanced') setCompressionDpi(150);
-                      }}
-                      className="glass-card"
-                      style={{
-                        padding: '10px 12px',
-                        cursor: 'pointer',
-                        border: compressionPreset === preset.id ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                        background: compressionPreset === preset.id ? 'var(--accent-primary-light)' : 'var(--bg-tertiary)',
-                        borderRadius: 'var(--radius-md)',
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', fontWeight: 700, display: 'block' }}>
-                        {preset.label}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        {preset.desc}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Additional Settings */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={compressionGrayscale}
-                      onChange={(e) => setCompressionGrayscale(e.target.checked)}
-                    />
-                    <span>Convert to Grayscale (Dramatically smaller scans)</span>
-                  </label>
-
-                  <div>
-                    <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Target DPI Resolution</label>
-                    <select
-                      value={compressionDpi}
-                      onChange={(e) => setCompressionDpi(parseInt(e.target.value))}
-                      style={{
-                        width: '100%',
-                        padding: '6px 10px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-medium)',
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        marginTop: '4px',
-                      }}
-                    >
-                      <option value={72}>72 DPI (Extreme Web/Email)</option>
-                      <option value={96}>96 DPI (Fast Screen)</option>
-                      <option value={150}>150 DPI (Balanced Standard)</option>
-                      <option value={300}>300 DPI (High Print Quality)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      <span>Image Quality</span>
-                      <span>{Math.round(compressionQuality * 100)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="0.3"
-                      max="0.9"
-                      step="0.05"
-                      value={compressionQuality}
-                      onChange={(e) => setCompressionQuality(parseFloat(e.target.value))}
-                      style={{ width: '100%', marginTop: '4px' }}
-                    />
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  disabled={isProcessing}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: '6px' }}
-                >
-                  <Download size={14} />
-                  <span>Execute Compression</span>
-                </button>
-              </div>
+              <CompressTool
+                compressionPreset={compressionPreset}
+                onPresetChange={(p) => setCompressionPreset(p)}
+                compressionGrayscale={compressionGrayscale}
+                onGrayscaleChange={(v) => setCompressionGrayscale(v)}
+                compressionDpi={compressionDpi}
+                onDpiChange={(dpi) => setCompressionDpi(dpi)}
+                compressionQuality={compressionQuality}
+                onQualityChange={(q) => setCompressionQuality(q)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 2. ROTATE PAGES TOOL */}
             {currentToolTab === 'rotate-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Rotate Document Pages
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Bulk rotate all pages or adjust the active page's angle.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, rotation: (p.rotation + 90) % 360 }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  >
-                    <RotateCw size={14} />
-                    <span>Rotate All Pages 90° Clockwise</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, rotation: (p.rotation + 270) % 360 }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  >
-                    <RotateCcw size={14} />
-                    <span>Rotate All Pages 90° Counter-CW</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, rotation: (p.rotation + 180) % 360 }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                  >
-                    <RefreshCw size={14} />
-                    <span>Flip All Pages Upside Down (180°)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, rotation: 0 }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-ghost btn-sm"
-                    style={{ width: '100%' }}
-                  >
-                    <span>Reset All Rotations to 0°</span>
-                  </button>
-                </div>
-              </div>
+              <RotateTool
+                pages={docState.pages}
+                onUpdatePages={(newPages) => pushHistory(newPages)}
+              />
             )}
 
-            {/* 3. REMOVE PAGES TOOL */}
             {currentToolTab === 'remove-pages' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Bulk Remove Pages
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Quickly eliminate multiple pages by pattern or selection.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p, idx) => (idx % 2 === 1 ? { ...p, deleted: true } : p));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%' }}
-                  >
-                    <span>Delete All Even Pages (2, 4, 6…)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p, idx) => (idx % 2 === 0 ? { ...p, deleted: true } : p));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%' }}
-                  >
-                    <span>Delete All Odd Pages (1, 3, 5…)</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, deleted: !p.deleted }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ width: '100%' }}
-                  >
-                    <span>Invert Page Deletions</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      const newPages = docState.pages.map((p) => ({ ...p, deleted: false }));
-                      pushHistory(newPages);
-                    }}
-                    className="btn btn-ghost btn-sm"
-                    style={{ width: '100%' }}
-                  >
-                    <span>Restore All Deleted Pages</span>
-                  </button>
-                </div>
-              </div>
+              <RemovePagesTool
+                pages={docState.pages}
+                onUpdatePages={(newPages) => pushHistory(newPages)}
+              />
             )}
 
-            {/* 4. EXTRACT PAGES TOOL */}
             {currentToolTab === 'extract-pages' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Extract Specific Pages
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Specify comma-separated page numbers or ranges to isolate into a new PDF.
-                  </p>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Page Ranges (e.g. 1, 3-5)
-                  </label>
-                  <input
-                    type="text"
-                    value={extractRangeText}
-                    onChange={(e) => setExtractRangeText(e.target.value)}
-                    placeholder="1, 3-5"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Extracting selected pages…');
-                    try {
-                      // Parse ranges
-                      const pageNumbers: number[] = [];
-                      extractRangeText.split(',').forEach((part) => {
-                        const range = part.trim().split('-');
-                        if (range.length === 2) {
-                          const start = parseInt(range[0]);
-                          const end = parseInt(range[1]);
-                          for (let i = start; i <= end; i++) pageNumbers.push(i);
-                        } else if (range.length === 1 && parseInt(range[0])) {
-                          pageNumbers.push(parseInt(range[0]));
-                        }
-                      });
-
-                      const extracted = await PDFEngineService.extractPageRanges(docState.arrayBuffer, pageNumbers);
-                      const blob = new Blob([new Uint8Array(extracted)], { type: 'application/pdf' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace('.pdf', '')}_extracted.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } catch (err) {
-                      console.error('Extraction error:', err);
-                      alert('Could not extract pages. Check range format.');
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <FolderDown size={14} />
-                  <span>Download Extracted Pages</span>
-                </button>
-              </div>
+              <ExtractPagesTool
+                docState={docState}
+                extractRangeText={extractRangeText}
+                onRangeTextChange={(val) => setExtractRangeText(val)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 5. SPLIT PDF TOOL */}
             {currentToolTab === 'split-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Split Document
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Cut document into single-page PDFs or equal chunks.
-                  </p>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Split Every N Pages
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={docState.pageCount}
-                    value={splitEveryN}
-                    onChange={(e) => setSplitEveryN(Math.max(1, parseInt(e.target.value) || 1))}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Splitting document into ZIP archive…');
-                    try {
-                      const zip = new JSZip();
-                      const total = docState.pageCount;
-                      let partIdx = 1;
-
-                      for (let start = 1; start <= total; start += splitEveryN) {
-                        const end = Math.min(total, start + splitEveryN - 1);
-                        const pagesToExtract = [];
-                        for (let p = start; p <= end; p++) pagesToExtract.push(p);
-
-                        const bytes = await PDFEngineService.extractPageRanges(docState.arrayBuffer, pagesToExtract);
-                        zip.file(`part_${partIdx}_pages_${start}-${end}.pdf`, bytes);
-                        partIdx++;
-                      }
-
-                      const zipBlob = await zip.generateAsync({ type: 'blob' });
-                      const url = URL.createObjectURL(zipBlob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace('.pdf', '')}_split_parts.zip`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Scissors size={14} />
-                  <span>Split & Download All Parts (ZIP)</span>
-                </button>
-              </div>
+              <SplitTool
+                docState={docState}
+                splitEveryN={splitEveryN}
+                onSplitEveryNChange={(n) => setSplitEveryN(n)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 6. SIGN & FILL TOOL */}
             {currentToolTab === 'sign-pdf' && (
-              <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '6px' }}>
-                  Sign Document
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                  Create or upload a signature and place it on any page.
-                </p>
-
-                <button
-                  onClick={() => setIsSigModalOpen(true)}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginBottom: '12px' }}
-                >
-                  <PenTool size={14} />
-                  <span>Create / Add Signature</span>
-                </button>
-
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Placed on this document: {placedSignatures.length} signature(s)
-                </span>
-              </div>
+              <SignTool
+                placedSignatures={placedSignatures}
+                onOpenSignatureModal={() => setIsSigModalOpen(true)}
+              />
             )}
 
-            {/* 7. REDACT TOOL */}
             {currentToolTab === 'redact-pdf' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <EyeOff size={16} color="var(--error)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>
-                    Redact & Blackout
-                  </h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                  Permanently black out confidential numbers, addresses, and sensitive clauses.
-                </p>
-
-                <button
-                  onClick={handleAddRedactionBox}
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%', marginBottom: '12px' }}
-                >
-                  <span>+ Place Blackout Box</span>
-                </button>
-
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Active Redaction Boxes: {redactions.length}
-                </span>
-              </div>
+              <RedactTool
+                redactions={redactions}
+                onAddRedactionBox={handleAddRedactionBox}
+              />
             )}
 
-            {/* 8. PROTECT / ENCRYPT TOOL */}
             {currentToolTab === 'protect-pdf' && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <Lock size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>
-                    Password Protect
-                  </h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                  Lock your document with AES encryption before exporting.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Set Access Password
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="Enter document password…"
-                    value={protectPassword}
-                    onChange={(e) => setProtectPassword(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  disabled={!protectPassword || isProcessing}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: '14px' }}
-                >
-                  <Lock size={14} />
-                  <span>Lock & Download Document</span>
-                </button>
-              </div>
+              <ProtectTool
+                protectPassword={protectPassword}
+                onPasswordChange={(pw) => setProtectPassword(pw)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 9. UNLOCK PDF TOOL */}
             {currentToolTab === 'unlock-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>
-                    Unlock & Decrypt PDF
-                  </h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Strip password restrictions and print limitations for documents you own.
-                  </p>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Check size={14} />
-                  <span>Remove Restrictions & Save Unlocked</span>
-                </button>
-              </div>
+              <UnlockTool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 10. WATERMARK TOOL */}
             {currentToolTab === 'watermark-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '2px' }}>
-                  Watermark Settings
-                </h4>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Watermark Text
-                  </label>
-                  <input
-                    type="text"
-                    value={watermarkSettings.text}
-                    onChange={(e) => setWatermarkSettings({ ...watermarkSettings, text: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Opacity: {Math.round(watermarkSettings.opacity * 100)}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0.05"
-                    max="0.8"
-                    step="0.05"
-                    value={watermarkSettings.opacity}
-                    onChange={(e) => setWatermarkSettings({ ...watermarkSettings, opacity: parseFloat(e.target.value) })}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Rotation: {watermarkSettings.rotation}°
-                  </label>
-                  <input
-                    type="range"
-                    min="-90"
-                    max="90"
-                    step="15"
-                    value={watermarkSettings.rotation}
-                    onChange={(e) => setWatermarkSettings({ ...watermarkSettings, rotation: parseInt(e.target.value) })}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: '6px' }}
-                >
-                  <Download size={14} />
-                  <span>Apply Watermark & Export</span>
-                </button>
-              </div>
+              <WatermarkTool
+                watermarkSettings={watermarkSettings}
+                onWatermarkSettingsChange={(s) => setWatermarkSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 11. PAGE NUMBERS TOOL */}
             {currentToolTab === 'page-numbers' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '2px' }}>
-                  Page Numbers
-                </h4>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Format
-                  </label>
-                  <select
-                    value={pageNumberSettings.format}
-                    onChange={(e) => setPageNumberSettings({ ...pageNumberSettings, format: e.target.value as any })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="Page 1 of n">Page 1 of n</option>
-                    <option value="Page 1">Page 1</option>
-                    <option value="1">1</option>
-                    <option value="- 1 -">- 1 -</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Position
-                  </label>
-                  <select
-                    value={pageNumberSettings.position}
-                    onChange={(e) => setPageNumberSettings({ ...pageNumberSettings, position: e.target.value as any })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="bottom-center">Bottom Center</option>
-                    <option value="bottom-right">Bottom Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="top-center">Top Center</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: '6px' }}
-                >
-                  <Download size={14} />
-                  <span>Apply Numbers & Export</span>
-                </button>
-              </div>
+              <PageNumbersTool
+                pageNumberSettings={pageNumberSettings}
+                onPageNumberSettingsChange={(s) => setPageNumberSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 12. QR CODE STAMPER */}
             {currentToolTab === 'qr-code-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <QrCode size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Add Dynamic QR Code</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Stamp a high-resolution QR code onto the current page.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>QR Code Content / URL</label>
-                  <input
-                    type="text"
-                    value={qrSettings.text}
-                    onChange={(e) => setQrSettings({ ...qrSettings, text: e.target.value })}
-                    placeholder="https://example.com"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Stamp Position</label>
-                  <select
-                    value={qrSettings.position}
-                    onChange={(e) => setQrSettings({ ...qrSettings, position: e.target.value as any })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="bottom-right">Bottom Right</option>
-                    <option value="bottom-left">Bottom Left</option>
-                    <option value="top-right">Top Right</option>
-                    <option value="top-left">Top Left</option>
-                    <option value="center">Center</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  disabled={!qrSettings.text.trim() || isProcessing}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%', marginTop: '6px' }}
-                >
-                  <QrCode size={14} />
-                  <span>Stamp QR Code & Export</span>
-                </button>
-              </div>
+              <QRCodeTool
+                qrSettings={qrSettings}
+                onQrSettingsChange={(s) => setQrSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 13. CREATE INTERACTIVE FORM FIELDS */}
             {currentToolTab === 'create-form' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckSquare size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Interactive Form Builder</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Add fillable form controls directly onto this page.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Field Name / ID</label>
-                  <input
-                    type="text"
-                    value={formFieldState.name}
-                    onChange={(e) => setFormFieldState({ ...formFieldState, name: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Field Type</label>
-                  <select
-                    value={formFieldState.type}
-                    onChange={(e) => setFormFieldState({ ...formFieldState, type: e.target.value as any })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="text">Text Input Field</option>
-                    <option value="checkbox">Checkbox</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Adding form fields…');
-                    try {
-                      const updated = await PDFEngineService.addInteractiveFormFields(docState.arrayBuffer, [
-                        {
-                          type: formFieldState.type,
-                          name: formFieldState.name,
-                          pageNumber: currentPageNum,
-                          xPercent: 30,
-                          yPercent: 40,
-                          widthPercent: formFieldState.type === 'checkbox' ? 5 : 40,
-                          heightPercent: formFieldState.type === 'checkbox' ? 3 : 5,
-                        },
-                      ]);
-                      setDocState({ ...docState, arrayBuffer: updated.buffer as ArrayBuffer });
-                      alert(`Added interactive ${formFieldState.type} field to page ${currentPageNum}!`);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <CheckSquare size={14} />
-                  <span>Add Field to Current Page</span>
-                </button>
-              </div>
+              <CreateFormTool
+                docState={docState}
+                currentPageNum={currentPageNum}
+                formFieldState={formFieldState}
+                onFormFieldStateChange={(s) => setFormFieldState(s)}
+                onUpdateDocState={(newDoc) => setDocState(newDoc)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 14. EXTRACT TEXT TOOL */}
             {currentToolTab === 'extract-text' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileText size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Extract Document Text</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Extract all selectable paragraphs and text lines into plain text.
-                </p>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Extracting text content…');
-                    try {
-                      const { text } = await PDFEngineService.extractFullText(docState.arrayBuffer);
-                      setExtractedDocText(text);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <FileText size={14} />
-                  <span>Extract All Text</span>
-                </button>
-
-                {extractedDocText && (
-                  <div>
-                    <textarea
-                      readOnly
-                      value={extractedDocText}
-                      rows={8}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-medium)',
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '11px',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(extractedDocText);
-                          alert('Copied to clipboard!');
-                        }}
-                        className="btn btn-secondary btn-sm"
-                        style={{ flex: 1 }}
-                      >
-                        <Copy size={13} />
-                        <span>Copy</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          const blob = new Blob([extractedDocText], { type: 'text/plain;charset=utf-8' });
-                          const url = URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `${docState.name.replace('.pdf', '')}_text.txt`;
-                          a.click();
-                        }}
-                        className="btn btn-primary btn-sm"
-                        style={{ flex: 1 }}
-                      >
-                        <Download size={13} />
-                        <span>Download .txt</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <ExtractTextTool
+                docState={docState}
+                extractedDocText={extractedDocText || fullDocumentText}
+                onExtractedDocTextChange={(txt) => setExtractedDocText(txt)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 15. PDF TO WORD (DOCX / HTML DOC) */}
             {currentToolTab === 'pdf-to-word' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileCode size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>PDF to Word Document</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Converts document headings, paragraphs, and page breaks into an editable Microsoft Word document.
-                </p>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Converting PDF to Microsoft Word document…');
-                    try {
-                      const wordBlob = await PDFEngineService.convertToWordDoc(docState.arrayBuffer, docState.name);
-                      const url = URL.createObjectURL(wordBlob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace('.pdf', '')}.doc`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Download size={14} />
-                  <span>Download Word (.doc)</span>
-                </button>
-              </div>
+              <PdfToWordTool
+                docState={docState}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 16. PDF TO IMAGES TOOL */}
             {currentToolTab === 'pdf-to-images' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Images size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>PDF to Images (ZIP)</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Renders every page into high-resolution standalone images packed in a ZIP.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Image Format</label>
-                  <select
-                    value={pdfImagesFormat}
-                    onChange={(e) => setPdfImagesFormat(e.target.value as any)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="png">PNG (Lossless & Crisp)</option>
-                    <option value="jpeg">JPEG (Compressed Photo)</option>
-                    <option value="webp">WebP (Modern Compact)</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Rendering pages to images and compressing ZIP…');
-                    try {
-                      const images = await PDFEngineService.convertToImages(docState.arrayBuffer, pdfImagesFormat, 2.0);
-                      const zip = new JSZip();
-                      images.forEach((img) => {
-                        zip.file(`page_${img.pageNumber}.${pdfImagesFormat}`, img.blob);
-                      });
-                      const zipBlob = await zip.generateAsync({ type: 'blob' });
-                      const url = URL.createObjectURL(zipBlob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace('.pdf', '')}_images.zip`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Download size={14} />
-                  <span>Download All Images (ZIP)</span>
-                </button>
-              </div>
+              <PdfToImagesTool
+                docState={docState}
+                pdfImagesFormat={pdfImagesFormat}
+                onPdfImagesFormatChange={(fmt) => setPdfImagesFormat(fmt)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 17. PDF TO PDF/A ARCHIVAL */}
             {currentToolTab === 'pdf-to-pdfa' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Archive size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>PDF to PDF/A Archival</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Transforms document to ISO 19005-1 compliant PDF/A-1b standard for guaranteed long-term digital preservation.
-                </p>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Archive size={14} />
-                  <span>Convert & Download PDF/A</span>
-                </button>
-              </div>
+              <PdfToPdfATool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 18. FLATTEN / RASTERIZE TOOL */}
             {currentToolTab === 'flatten-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Layers size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Flatten & Rasterize</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Bakes all interactive forms, annotations, and vector layers into non-editable raster bitmaps.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Raster Resolution</label>
-                  <select
-                    value={flattenDpi}
-                    onChange={(e) => setFlattenDpi(parseInt(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value={100}>100 DPI (Draft / Small)</option>
-                    <option value={150}>150 DPI (Standard)</option>
-                    <option value={300}>300 DPI (High Definition)</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Layers size={14} />
-                  <span>Flatten Document Layers</span>
-                </button>
-              </div>
+              <FlattenTool
+                flattenDpi={flattenDpi}
+                onFlattenDpiChange={(dpi) => setFlattenDpi(dpi)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 19. REPAIR TOOL */}
             {currentToolTab === 'repair-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Wrench size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Repair Damaged PDF</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Rebuilds broken XREF cross-reference tables, stream lengths, and structural dictionaries.
-                </p>
-
-                <div className="glass-card" style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  File health status: <strong style={{ color: '#10b981' }}>Stream Analyzed</strong>
-                </div>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Wrench size={14} />
-                  <span>Repair & Reconstruct PDF</span>
-                </button>
-              </div>
+              <RepairTool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 20. WEB OPTIMIZE TOOL */}
             {currentToolTab === 'web-optimize' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Zap size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Web Fast View (Linearize)</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Re-indexes indirect objects into compressed streams for instantaneous browser streaming without waiting for full download.
-                </p>
-
-                <button
-                  onClick={handleExportPDF}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Zap size={14} />
-                  <span>Linearize Document</span>
-                </button>
-              </div>
+              <WebOptimizeTool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 21. OVERLAY & UNDERLAY TOOL */}
             {currentToolTab === 'overlay-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CopyPlus size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Overlay / Letterhead</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Merge letterhead backgrounds or stationery templates across all pages.
-                </p>
-
-                <div
-                  className="glass-card"
-                  style={{
-                    padding: '14px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    border: overlayFile ? '2px solid var(--accent-primary)' : '1px dashed var(--border-medium)',
-                  }}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.pdf';
-                    input.onchange = (e) => {
-                      const f = (e.target as HTMLInputElement).files?.[0];
-                      if (f) setOverlayFile(f);
-                    };
-                    input.click();
-                  }}
-                >
-                  <CopyPlus size={20} style={{ margin: '0 auto 6px', color: 'var(--accent-primary)' }} />
-                  <span style={{ fontSize: '12px', fontWeight: 600, display: 'block' }}>
-                    {overlayFile ? overlayFile.name : 'Select Template / Letterhead PDF'}
-                  </span>
-                </div>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={overlayIsUnderlay}
-                    onChange={(e) => setOverlayIsUnderlay(e.target.checked)}
-                  />
-                  <span>Place as Underlay (Behind existing text)</span>
-                </label>
-
-                <button
-                  onClick={handleExportPDF}
-                  disabled={!overlayFile || isProcessing}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Download size={14} />
-                  <span>Apply Overlay & Export</span>
-                </button>
-              </div>
+              <OverlayTool
+                overlayFile={overlayFile}
+                onOverlayFileChange={(f) => setOverlayFile(f)}
+                overlayIsUnderlay={overlayIsUnderlay}
+                onOverlayIsUnderlayChange={(u) => setOverlayIsUnderlay(u)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 22. ALTERNATE & MIX TOOL */}
             {currentToolTab === 'alternate-mix' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Shuffle size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Alternate & Mix 2 PDFs</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Interleave pages from current document (fronts) with a 2nd document (backs).
-                </p>
-
-                <div
-                  className="glass-card"
-                  style={{
-                    padding: '14px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    border: alternateMixFile ? '2px solid var(--accent-primary)' : '1px dashed var(--border-medium)',
-                  }}
-                  onClick={() => {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.pdf';
-                    input.onchange = (e) => {
-                      const f = (e.target as HTMLInputElement).files?.[0];
-                      if (f) setAlternateMixFile(f);
-                    };
-                    input.click();
-                  }}
-                >
-                  <Shuffle size={20} style={{ margin: '0 auto 6px', color: 'var(--accent-primary)' }} />
-                  <span style={{ fontSize: '12px', fontWeight: 600, display: 'block' }}>
-                    {alternateMixFile ? alternateMixFile.name : 'Select Document 2 (Back Pages)'}
-                  </span>
-                </div>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={alternateMixReverse}
-                    onChange={(e) => setAlternateMixReverse(e.target.checked)}
-                  />
-                  <span>Reverse Document 2 page order (Duplex scanner)</span>
-                </label>
-
-                <button
-                  onClick={handleExportPDF}
-                  disabled={!alternateMixFile || isProcessing}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Shuffle size={14} />
-                  <span>Mix Documents & Export</span>
-                </button>
-              </div>
+              <AlternateMixTool
+                alternateMixFile={alternateMixFile}
+                onAlternateMixFileChange={(f) => setAlternateMixFile(f)}
+                alternateMixReverse={alternateMixReverse}
+                onAlternateMixReverseChange={(r) => setAlternateMixReverse(r)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 23. PASSWORD GENERATOR TOOL */}
             {currentToolTab === 'password-generator' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <KeyRound size={16} color="#10b981" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Password Generator</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Generate cryptographically secure passwords for locking PDF documents.
-                </p>
-
-                <div className="glass-card" style={{ padding: '12px', background: 'var(--bg-tertiary)', border: '1px solid var(--border-medium)' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '14px', fontWeight: 700, color: 'var(--accent-primary)', wordBreak: 'break-all' }}>
-                    {genPassVal}
-                  </span>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>Length</span>
-                    <span>{genPassLen} characters</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="8"
-                    max="48"
-                    value={genPassLen}
-                    onChange={(e) => setGenPassLen(parseInt(e.target.value))}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    onClick={() => {
-                      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*()_+-=';
-                      const arr = new Uint32Array(genPassLen);
-                      window.crypto.getRandomValues(arr);
-                      let res = '';
-                      for (let i = 0; i < genPassLen; i++) res += chars[arr[i] % chars.length];
-                      setGenPassVal(res);
-                      setGenPassCopied(false);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{ flex: 1 }}
-                  >
-                    <RefreshCw size={13} />
-                    <span>Generate</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(genPassVal);
-                      setGenPassCopied(true);
-                      setTimeout(() => setGenPassCopied(false), 2000);
-                    }}
-                    className={`btn btn-sm ${genPassCopied ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ flex: 1 }}
-                  >
-                    {genPassCopied ? <Check size={13} /> : <Copy size={13} />}
-                    <span>{genPassCopied ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
-              </div>
+              <PasswordGeneratorTool
+                genPassVal={genPassVal}
+                onGenPassValChange={(v) => setGenPassVal(v)}
+                genPassLen={genPassLen}
+                onGenPassLenChange={(l) => setGenPassLen(l)}
+                genPassCopied={genPassCopied}
+                onGenPassCopiedChange={(c) => setGenPassCopied(c)}
+              />
             )}
 
-            {/* 24. FULLSCREEN VIEWER / READER TOOL */}
             {currentToolTab === 'view-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Eye size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Fullscreen PDF Reader</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Distraction-free viewing mode with zero clutter.
-                </p>
-
-                <button
-                  onClick={() => {
-                    const elem = document.documentElement;
-                    if (!document.fullscreenElement) {
-                      elem.requestFullscreen?.();
-                    } else {
-                      document.exitFullscreen?.();
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Eye size={14} />
-                  <span>Toggle Fullscreen Mode</span>
-                </button>
-              </div>
+              <ViewPdfTool
+                docState={docState}
+                zoomScale={zoomScale}
+                onZoomChange={(z) => setZoomScale(z)}
+              />
             )}
 
-            {/* 25. OCR TOOL */}
+            {currentToolTab === 'ai-chat' && (
+              <AiChatTool
+                docState={docState}
+                fullDocumentText={fullDocumentText}
+                fullPageTexts={fullPageTexts}
+                isExtractingText={isExtractingText}
+                onOpenAiStudio={() => setIsAiModalOpen(true)}
+              />
+            )}
+
             {currentToolTab === 'ocr-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '2px' }}>
-                  Local OCR Recognition
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Extract searchable text from scanned pages directly inside your browser.
-                </p>
-
-                <button
-                  onClick={handleRunOCR}
-                  disabled={isOcrLoading}
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  {isOcrLoading ? (
-                    <>
-                      <Loader2 size={14} className="animate-spin" />
-                      <span>{ocrProgress}</span>
-                    </>
-                  ) : (
-                    <>
-                      <ScanText size={14} />
-                      <span>Scan Current Page ({currentPageNum})</span>
-                    </>
-                  )}
-                </button>
-
-                {ocrText && (
-                  <div>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                      Recognized Text:
-                    </span>
-                    <textarea
-                      readOnly
-                      value={ocrText}
-                      rows={8}
-                      style={{
-                        width: '100%',
-                        marginTop: '4px',
-                        padding: '8px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--border-medium)',
-                        background: 'var(--bg-tertiary)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+              <OcrTool
+                currentPageNum={currentPageNum}
+                isOcrLoading={isOcrLoading}
+                ocrProgress={ocrProgress}
+                ocrText={ocrText}
+                onRunOCR={handleRunOCR}
+              />
             )}
 
-            {/* 26. METADATA SCRUBBER */}
             {currentToolTab === 'metadata-scrubber' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '2px' }}>
-                  Document Metadata
-                </h4>
-
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={metadataFields.title}
-                    onChange={(e) => setMetadataFields({ ...metadataFields, title: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Author
-                  </label>
-                  <input
-                    type="text"
-                    value={metadataFields.author}
-                    onChange={(e) => setMetadataFields({ ...metadataFields, author: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '12px',
-                    }}
-                  />
-                </div>
-
-                <button
-                  onClick={() => setMetadataFields({ title: '', author: '', subject: '' })}
-                  className="btn btn-secondary btn-sm"
-                  style={{ marginTop: '8px' }}
-                >
-                  <ShieldCheck size={14} color="#10b981" />
-                  <span>1-Click Sanitize All</span>
-                </button>
-              </div>
+              <MetadataTool
+                metadataFields={metadataFields}
+                onMetadataFieldsChange={(fields) => setMetadataFields(fields)}
+              />
             )}
 
-            {/* 27. HALVE PDF TOOL */}
             {currentToolTab === 'halve-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Columns2 size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Halve 2-in-1 Spreads</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Cuts every landscape double-page spread vertically down the center into separate individual single pages.
-                </p>
-                <div className="glass-card" style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Resulting page count will be: <strong style={{ color: 'var(--text-primary)' }}>{activePages.length * 2} pages</strong>.
-                </div>
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Columns2 size={14} />
-                  <span>Split Spreads in Half</span>
-                </button>
-              </div>
+              <HalveTool
+                pages={docState.pages}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 28. PAGES PER SHEET (N-UP) */}
             {currentToolTab === 'pages-per-sheet' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Grid2X2 size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Pages per Sheet (N-Up)</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Impose multiple document pages into a single printed sheet to save paper.
-                </p>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Pages per Sheet</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginTop: '6px' }}>
-                    {([2, 4, 9, 16] as const).map((count) => (
-                      <button
-                        key={count}
-                        onClick={() => setNUpSettings({ ...nUpSettings, pagesPerSheet: count })}
-                        className={`btn btn-sm ${nUpSettings.pagesPerSheet === count ? 'btn-primary' : 'btn-secondary'}`}
-                      >
-                        {count}-Up
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={nUpSettings.addBorder}
-                    onChange={(e) => setNUpSettings({ ...nUpSettings, addBorder: e.target.checked })}
-                  />
-                  <span>Draw separation borders between pages</span>
-                </label>
-
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Grid2X2 size={14} />
-                  <span>Apply N-Up Imposition</span>
-                </button>
-              </div>
+              <NUpTool
+                nUpSettings={nUpSettings}
+                onNUpSettingsChange={(s) => setNUpSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 29. BOOKLET CREATOR */}
             {currentToolTab === 'booklet-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <BookOpen size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Booklet Imposition</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Rearranges pages so that when printed double-sided and folded down the center, pages read in perfect consecutive order.
-                </p>
-                <div className="glass-card" style={{ padding: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Total sheets required: <strong style={{ color: 'var(--text-primary)' }}>{Math.ceil(activePages.length / 4)} landscape sheets</strong>.
-                </div>
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <BookOpen size={14} />
-                  <span>Generate Booklet Imposition</span>
-                </button>
-              </div>
+              <BookletTool
+                pages={docState.pages}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 30. CROP TOOL */}
             {currentToolTab === 'crop-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Crop size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Crop Page Margins</h4>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Top Margin: {cropSettings.topPercent}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    value={cropSettings.topPercent}
-                    onChange={(e) => setCropSettings({ ...cropSettings, topPercent: parseInt(e.target.value) })}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Bottom Margin: {cropSettings.bottomPercent}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    value={cropSettings.bottomPercent}
-                    onChange={(e) => setCropSettings({ ...cropSettings, bottomPercent: parseInt(e.target.value) })}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Side Margins: {cropSettings.leftPercent}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="40"
-                    value={cropSettings.leftPercent}
-                    onChange={(e) => setCropSettings({ ...cropSettings, leftPercent: parseInt(e.target.value), rightPercent: parseInt(e.target.value) })}
-                    style={{ width: '100%', marginTop: '4px' }}
-                  />
-                </div>
-
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Crop size={14} />
-                  <span>Apply Crop Bounds</span>
-                </button>
-              </div>
+              <CropTool
+                cropSettings={cropSettings}
+                onCropSettingsChange={(s) => setCropSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 31. RESIZE TOOL */}
             {currentToolTab === 'resize-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Maximize2 size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Resize Dimensions</h4>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Standard Sheet Size</label>
-                  <select
-                    value={resizeSettings.targetSize}
-                    onChange={(e) => setResizeSettings({ ...resizeSettings, targetSize: e.target.value as any })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      marginTop: '4px',
-                      fontSize: '13px',
-                    }}
-                  >
-                    <option value="A4">A4 (210 × 297 mm)</option>
-                    <option value="A3">A3 (297 × 420 mm)</option>
-                    <option value="A5">A5 (148 × 210 mm)</option>
-                    <option value="Letter">US Letter (8.5 × 11 in)</option>
-                    <option value="Legal">US Legal (8.5 × 14 in)</option>
-                  </select>
-                </div>
-
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Maximize2 size={14} />
-                  <span>Resize Pages</span>
-                </button>
-              </div>
+              <ResizeTool
+                resizeSettings={resizeSettings}
+                onResizeSettingsChange={(s) => setResizeSettings(s)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 32. REMOVE BLANK PAGES TOOL */}
             {currentToolTab === 'remove-blank-pages' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Remove Blank Pages</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Scans luminance and text content of all pages and purges empty scanner feeder pages.
-                </p>
-
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Sparkles size={14} />
-                  <span>Scan & Prune Blank Pages</span>
-                </button>
-              </div>
+              <RemoveBlankPagesTool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 33. EXTRACT IMAGES TO ZIP */}
             {currentToolTab === 'extract-images' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Images size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Extract Images</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Dump all high-resolution pictures and photos from this PDF into a compressed ZIP archive.
-                </p>
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Isolating embedded images and packing ZIP…');
-                    try {
-                      const zipBlob = await PDFEngineService.extractImagesToZip(docState.arrayBuffer);
-                      const url = URL.createObjectURL(zipBlob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace(/\.[^/.]+$/, '')}_images.zip`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Download size={14} />
-                  <span>Download All Images (ZIP)</span>
-                </button>
-              </div>
+              <ExtractImagesTool
+                docState={docState}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 34. EXTRACT TABLES TO CSV */}
             {currentToolTab === 'pdf-to-excel' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Table size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Extract Table to CSV</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Extract numeric tabular data, invoices, and columns into spreadsheet CSV format.
-                </p>
-                <button
-                  onClick={async () => {
-                    setIsProcessing(true);
-                    setProcessingStatus('Parsing tabular matrix…');
-                    try {
-                      const csv = await PDFEngineService.extractTablesToCSV(docState.arrayBuffer);
-                      setExtractedCsvText(csv);
-                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.style.display = 'none';
-                      a.href = url;
-                      a.download = `${docState.name.replace(/\.[^/.]+$/, '')}_data.csv`;
-                      document.body.appendChild(a);
-                      a.click();
-                      setTimeout(() => {
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                      }, 100);
-                    } finally {
-                      setIsProcessing(false);
-                      setProcessingStatus('');
-                    }
-                  }}
-                  className="btn btn-primary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Download size={14} />
-                  <span>Download Table CSV</span>
-                </button>
-                {extractedCsvText && (
-                  <textarea
-                    readOnly
-                    value={extractedCsvText}
-                    rows={6}
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--border-medium)',
-                      background: 'var(--bg-tertiary)',
-                      color: 'var(--text-primary)',
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  />
-                )}
-              </div>
+              <PdfToExcelTool
+                docState={docState}
+                extractedCsvText={extractedCsvText}
+                onExtractedCsvTextChange={(csv) => setExtractedCsvText(csv)}
+                isProcessing={isProcessing}
+                setIsProcessing={setIsProcessing}
+                setProcessingStatus={setProcessingStatus}
+              />
             )}
 
-            {/* 35. ANNOTATE & DRAW TOOL */}
             {currentToolTab === 'annotate-pdf' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <PenTool size={16} color="var(--accent-primary)" />
-                  <h4 style={{ fontSize: '15px', fontWeight: 700 }}>Annotate & Draw</h4>
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Draw, highlight, and sketch directly onto the active page. Strokes are automatically baked into the PDF upon export.
-                </p>
-
-                {/* Mode Selector */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Tool Mode</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setAnnotationMode('pen')}
-                      className={`btn btn-sm ${annotationMode === 'pen' ? 'btn-primary' : 'btn-secondary'}`}
-                    >
-                      <PenTool size={13} />
-                      <span>Pen</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAnnotationMode('highlighter')}
-                      className={`btn btn-sm ${annotationMode === 'highlighter' ? 'btn-primary' : 'btn-secondary'}`}
-                    >
-                      <Sparkles size={13} />
-                      <span>Highlighter</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Color Selector */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Color Palette</label>
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                    {[
-                      { name: 'Amber', color: '#f59e0b' },
-                      { name: 'Blue', color: '#3b82f6' },
-                      { name: 'Red', color: '#ef4444' },
-                      { name: 'Green', color: '#10b981' },
-                      { name: 'Obsidian', color: '#0f172a' },
-                    ].map((c) => (
-                      <button
-                        key={c.color}
-                        type="button"
-                        onClick={() => setAnnotationColor(c.color)}
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          borderRadius: '50%',
-                          background: c.color,
-                          border: annotationColor === c.color ? '2px solid #ffffff' : '1px solid rgba(0,0,0,0.2)',
-                          boxShadow: annotationColor === c.color ? '0 0 0 2px var(--accent-primary)' : 'none',
-                          cursor: 'pointer',
-                        }}
-                        title={c.name}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Stroke Thickness */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)' }}>
-                    <span>Stroke Thickness</span>
-                    <span>{annotationWidth}px</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={2}
-                    max={24}
-                    value={annotationWidth}
-                    onChange={(e) => setAnnotationWidth(Number(e.target.value))}
-                    style={{ width: '100%', marginTop: '6px' }}
-                  />
-                </div>
-
-                {/* Actions */}
-                <button
-                  type="button"
-                  onClick={handleClearAnnotations}
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%' }}
-                >
-                  <Trash2 size={14} />
-                  <span>Clear Page Drawing</span>
-                </button>
-
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Download size={14} />
-                  <span>Bake Annotations & Export</span>
-                </button>
-              </div>
+              <AnnotateTool
+                annotationMode={annotationMode}
+                onAnnotationModeChange={(m) => setAnnotationMode(m)}
+                annotationColor={annotationColor}
+                onAnnotationColorChange={(c) => setAnnotationColor(c)}
+                annotationWidth={annotationWidth}
+                onAnnotationWidthChange={(w) => setAnnotationWidth(w)}
+                onClearAnnotations={handleClearAnnotations}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
 
-            {/* 36. DEFAULT ORGANIZE FALLBACK */}
-            {(currentToolTab === 'organize' || currentToolTab === 'reorder-pages') && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, marginBottom: '2px' }}>
-                  Organize Pages
-                </h4>
-                <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Drag, delete, rotate, or reorder pages in the left thumbnail panel. Use the dropdown above to switch to any of the 38 tools.
-                </p>
-                <button onClick={handleExportPDF} className="btn btn-primary btn-sm" style={{ width: '100%' }}>
-                  <Download size={14} />
-                  <span>Export Document</span>
-                </button>
-              </div>
+            {(currentToolTab === 'organize' || currentToolTab === 'reorder-pages' || !currentToolTab) && (
+              <OrganizeTool
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
             )}
           </div>
         </aside>
@@ -3022,8 +1432,15 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         documentName={docState.name}
-        documentText={ocrText || docState.name}
-        pageTexts={docState.pages.map((p: PDFPageInfo) => ({ pageNumber: p.pageNumber, text: `Page ${p.pageNumber}` }))}
+        documentText={fullDocumentText || ocrText || ''}
+        pageTexts={
+          fullPageTexts.length > 0
+            ? fullPageTexts
+            : ocrText
+            ? [{ pageNumber: currentPageNum, text: ocrText }]
+            : docState.pages.map((p: PDFPageInfo) => ({ pageNumber: p.pageNumber, text: `Page ${p.pageNumber}` }))
+        }
+        isTextLoading={isExtractingText}
         onNavigateToPage={(num: number) => setCurrentPageNum(num)}
       />
     </div>

@@ -3,11 +3,38 @@ import type { RecentFile } from '../types/pdf';
 const RECENT_FILES_KEY = 'ergonpdf_recent_files';
 const FAVORITES_KEY = 'ergonpdf_favorite_tools';
 const THEME_KEY = 'ergonpdf_theme';
+const DEFAULT_DPI_KEY = 'ergonpdf_default_dpi';
 
 /**
- * Manages browser localStorage persistence for recent documents, pinned tools, and theme preferences.
+ * Manages browser localStorage persistence for recent documents, pinned tools, theme preferences, and default rendering DPI.
  */
 export class StorageService {
+  /**
+   * Retrieves the user's preferred default DPI for compression and rasterization.
+   *
+   * @returns The saved DPI number, or 150 as default.
+   */
+  static getDefaultDpi(): number {
+    try {
+      const val = localStorage.getItem(DEFAULT_DPI_KEY);
+      return val ? parseInt(val, 10) || 150 : 150;
+    } catch {
+      return 150;
+    }
+  }
+
+  /**
+   * Persists the user's preferred default DPI.
+   *
+   * @param dpi - Target DPI resolution.
+   */
+  static setDefaultDpi(dpi: number): void {
+    try {
+      localStorage.setItem(DEFAULT_DPI_KEY, String(dpi));
+    } catch {
+      // ignore
+    }
+  }
   /**
    * Retrieves the list of recently opened PDF files from local storage.
    *

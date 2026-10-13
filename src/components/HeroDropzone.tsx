@@ -122,6 +122,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyDown={handleSearchKeyDown}
+          aria-label="Search tools by name or task"
           style={{
             border: 'none',
             background: 'transparent',
@@ -147,6 +148,16 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
 
       {/* 3. FOCUSED WORKSPACE / PHYSICAL-SHEET DROPZONE */}
       <div 
+        role="region"
+        aria-label="Document upload drop zone"
+        aria-describedby="dropzone-instruction dropzone-guarantee"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -167,6 +178,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           accept=".pdf,image/png,image/jpeg,image/webp"
           style={{ display: 'none' }}
           onChange={handleFileInputChange}
+          aria-hidden="true"
         />
 
         {/* Paper Sheet Icon Box */}
@@ -189,7 +201,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
           <FileText size={24} strokeWidth={1.5} />
         </div>
 
-        <h3 style={{
+        <h3 id="dropzone-instruction" style={{
           fontSize: '20px',
           fontFamily: 'var(--font-serif)',
           fontWeight: 400,
@@ -216,6 +228,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
               e.stopPropagation();
               fileInputRef.current?.click();
             }}
+            aria-label="Choose PDF or image files from device"
           >
             <FileUp size={14} strokeWidth={1.8} />
             <span>Choose from Device</span>
@@ -223,7 +236,7 @@ export const HeroDropzone: React.FC<HeroDropzoneProps> = ({
         </div>
 
         {/* Physical Security Guarantee */}
-        <p style={{
+        <p id="dropzone-guarantee" style={{
           fontSize: '11px',
           fontFamily: 'var(--font-mono)',
           color: 'var(--text-muted)',

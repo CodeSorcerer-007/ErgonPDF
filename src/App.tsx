@@ -20,6 +20,8 @@ import type { PDFDocumentState, RecentFile } from './types/pdf';
 import { PDFEngineService } from './services/pdfEngine';
 import { StorageService } from './services/storageService';
 
+const generateDocId = () => `doc-${Date.now()}`;
+
 export function App() {
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(StorageService.getTheme());
@@ -43,6 +45,7 @@ export function App() {
   const [isWebpageModalOpen, setIsWebpageModalOpen] = useState(false);
   const [isPasswordGenModalOpen, setIsPasswordGenModalOpen] = useState(false);
   const [isAlternateMixModalOpen, setIsAlternateMixModalOpen] = useState(false);
+  const [isCreatePdfOpen, setIsCreatePdfOpen] = useState(false);
   const [mergeInitialFiles, setMergeInitialFiles] = useState<File[]>([]);
 
   // Apply Theme attribute to documentElement
@@ -98,7 +101,7 @@ export function App() {
       const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
 
       setActiveDocument({
-        id: `doc-${Date.now()}`,
+        id: generateDocId(),
         name: `${firstFile.name.replace(/\.[^/.]+$/, '')}_converted.pdf`,
         size: pdfBuffer.byteLength,
         arrayBuffer: pdfBuffer,
@@ -115,7 +118,7 @@ export function App() {
       const inspected = await PDFEngineService.inspectDocument(buffer);
 
       setActiveDocument({
-        id: `doc-${Date.now()}`,
+        id: generateDocId(),
         name: firstFile.name,
         size: firstFile.size,
         arrayBuffer: buffer,
@@ -127,6 +130,28 @@ export function App() {
     } catch (err) {
       console.error(err);
       alert('Unable to read this PDF file. It may be corrupted or password-protected.');
+    }
+  };
+
+  const handleCreateBlankPDF = async (pattern: 'blank' | 'lines' | 'grid') => {
+    try {
+      const blankBytes = await PDFEngineService.createBlankPDF(pattern, 1);
+      const pdfBuffer = blankBytes.buffer as ArrayBuffer;
+      const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+      setActiveDocument({
+        id: generateDocId(),
+        name: `New_${pattern === 'blank' ? 'Blank' : pattern === 'lines' ? 'Lined' : 'Grid'}_Document.pdf`,
+        size: pdfBuffer.byteLength,
+        arrayBuffer: pdfBuffer,
+        pageCount: inspected.pageCount,
+        pages: inspected.pages,
+        metadata: { title: 'New Document' },
+      });
+      setActiveToolId('organize');
+    } catch (err) {
+      console.error('Failed to create PDF:', err);
+    } finally {
+      setIsCreatePdfOpen(false);
     }
   };
 
@@ -147,36 +172,62 @@ export function App() {
     } else if (toolId === 'alternate-mix') {
       setIsAlternateMixModalOpen(true);
     } else if (toolId === 'create-pdf') {
-      // Generate instant blank PDF canvas
-      const blankBytes = await PDFEngineService.createBlankPDF('lines', 1);
-      const inspected = await PDFEngineService.inspectDocument(blankBytes.buffer as ArrayBuffer);
-      setActiveDocument({
-        id: `doc-${Date.now()}`,
-        name: 'New_Document.pdf',
-        size: blankBytes.byteLength,
-        arrayBuffer: blankBytes.buffer as ArrayBuffer,
-        pageCount: inspected.pageCount,
-        pages: inspected.pages,
-        metadata: { title: 'New Document' },
-      });
-      setActiveToolId('organize');
+      setIsCreatePdfOpen(true);
+    } else if (toolId === 'images-to-pdf') {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      input.multiple = true;
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          const imageBuffers: { name: string; buffer: ArrayBuffer; type: string }[] = [];
+          for (const imgFile of Array.from(files)) {
+            const buf = await imgFile.arrayBuffer();
+            imageBuffers.push({ name: imgFile.name, buffer: buf, type: imgFile.type });
+          }
+          const pdfBytes = await PDFEngineService.imagesToPDF(imageBuffers);
+          const pdfBuffer = pdfBytes.buffer as ArrayBuffer;
+          const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+          setActiveDocument({
+            id: generateDocId(),
+            name: `${files[0].name.replace(/\.[^/.]+$/, '')}_converted.pdf`,
+            size: pdfBuffer.byteLength,
+            arrayBuffer: pdfBuffer,
+            pageCount: inspected.pageCount,
+            pages: inspected.pages,
+          });
+          setActiveToolId('organize');
+        }
+      };
+      input.click();
+    } else if (toolId === 'view-pdf') {
+      if (activeDocument) {
+        setActiveToolId('view-pdf');
+      } else {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf';
+        input.onchange = async (e) => {
+          const files = (e.target as HTMLInputElement).files;
+          if (files && files.length > 0) {
+            await handleFilesSelected(Array.from(files));
+            setActiveToolId('view-pdf');
+          }
+        };
+        input.click();
+      }
     } else {
       setActiveToolId(toolId);
       // If a document is already open, change active tool tab
       if (!activeDocument) {
-        // Trigger appropriate file input
         const input = document.createElement('input');
         input.type = 'file';
-        if (toolId === 'images-to-pdf') {
-          input.accept = 'image/*,.png,.jpg,.jpeg,.webp';
-          input.multiple = true;
-        } else {
-          input.accept = '.pdf';
-        }
-        input.onchange = (e) => {
+        input.accept = '.pdf';
+        input.onchange = async (e) => {
           const files = (e.target as HTMLInputElement).files;
           if (files && files.length > 0) {
-            handleFilesSelected(Array.from(files));
+            await handleFilesSelected(Array.from(files));
             setActiveToolId(toolId);
           }
         };
@@ -331,6 +382,90 @@ export function App() {
         onClose={() => setIsAlternateMixModalOpen(false)}
         onComplete={(file) => handleFilesSelected([file])}
       />
+
+      {/* Create New PDF Pattern Picker */}
+      {isCreatePdfOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="create-pdf-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 120,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => setIsCreatePdfOpen(false)}
+        >
+          <div
+            className="glass-panel animate-scale-in"
+            style={{
+              width: '100%',
+              maxWidth: '460px',
+              background: 'var(--bg-secondary)',
+              borderRadius: 'var(--radius-lg)',
+              boxShadow: 'var(--shadow-xl)',
+              padding: '24px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="create-pdf-title" style={{ fontSize: '18px', fontWeight: 700, marginBottom: '6px' }}>
+              Create New PDF
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+              Select a page template to generate a blank canvas document.
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              {[
+                { id: 'blank', label: 'Blank', desc: 'Clean white sheet' },
+                { id: 'lines', label: 'Lined', desc: 'Notebook ruling' },
+                { id: 'grid', label: 'Grid', desc: 'Graph paper grid' },
+              ].map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  type="button"
+                  onClick={() => handleCreateBlankPDF(tmpl.id as 'blank' | 'lines' | 'grid')}
+                  className="glass-card"
+                  style={{
+                    padding: '16px 12px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'var(--bg-tertiary)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {tmpl.label}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {tmpl.desc}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsCreatePdfOpen(false)}
+              className="btn btn-secondary btn-sm"
+              style={{ width: '100%' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

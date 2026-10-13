@@ -9,6 +9,11 @@ services:
       - "${PORT:-8080}:80"
     environment:
       - NODE_ENV=production
+    labels:
+      org.opencontainers.image.title: "ErgonPDF"
+      org.opencontainers.image.description: "The Open-Source, Privacy-First All-in-One PDF Workspace"
+      org.opencontainers.image.version: "1.2.0"
+      org.opencontainers.image.source: "https://github.com/CodeSorcerer-007/ErgonPDF"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/healthz"]
       interval: 30s

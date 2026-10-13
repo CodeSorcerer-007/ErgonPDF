@@ -15,7 +15,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   currentTheme,
   onThemeChange,
 }) => {
-  const [defaultDpi, setDefaultDpi] = useState('150');
+  const [defaultDpi, setDefaultDpi] = useState<string>(() => String(StorageService.getDefaultDpi()));
   const [cacheCleared, setCacheCleared] = useState(false);
 
   if (!isOpen) return null;
@@ -110,7 +110,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </label>
             <select
               value={defaultDpi}
-              onChange={(e) => setDefaultDpi(e.target.value)}
+              onChange={(e) => {
+                setDefaultDpi(e.target.value);
+                StorageService.setDefaultDpi(parseInt(e.target.value, 10) || 150);
+              }}
               style={{
                 width: '100%',
                 padding: '10px 14px',

@@ -31,6 +31,11 @@ COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 
 USER nginx
 
+LABEL org.opencontainers.image.title="ErgonPDF" \
+      org.opencontainers.image.description="The Open-Source, Privacy-First All-in-One PDF Workspace" \
+      org.opencontainers.image.version="1.2.0" \
+      org.opencontainers.image.source="https://github.com/CodeSorcerer-007/ErgonPDF"
+
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]

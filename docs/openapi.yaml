@@ -10,7 +10,7 @@ info:
     - **100% Client-Side Privacy**: Zero file transmission to third-party servers.
     - **No Authentication Required**: Default public access for client runtime; optional Bearer/API token for enterprise self-hosted gateways.
     - **Multi-Format Input/Output**: Supports PDF, PNG, JPEG, WebP, Word (`.doc`), CSV, and ZIP archives.
-  version: 1.1.0
+  version: 1.2.0
   contact:
     name: ErgonPDF Open Source Project
     url: https://github.com/CodeSorcerer-007/ErgonPDF
@@ -23,6 +23,8 @@ servers:
     description: Self-hosted Docker container instance
   - url: http://localhost:5173/api/v1
     description: Local development server
+  - url: http://localhost:4173/api/v1
+    description: Vite preview server
   - url: client://engine
     description: In-browser WebAssembly/WebWorker direct client engine
 

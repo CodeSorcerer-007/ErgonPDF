@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { PDFEngineService } from '../src/services/pdfEngine.ts';
 import { AIService } from '../src/services/aiService.ts';
@@ -56,16 +57,49 @@ async function runSmokeTest() {
   console.log('              ERGONPDF COMPREHENSIVE LOCAL SMOKE TEST                 ');
   console.log('======================================================================\n');
 
-  const samplePath = path.join(__dirname, '..', 'public', 'samples', 'sample_contract.pdf');
-  const contractBytes = fs.readFileSync(samplePath);
-  const contractBuffer = contractBytes.buffer.slice(contractBytes.byteOffset, contractBytes.byteOffset + contractBytes.byteLength);
+  let spawnedServer = null;
+  const isServerRunning = await (async () => {
+    const res = await makeRequest({ host: '127.0.0.1', port: 4173, path: '/healthz', method: 'GET' });
+    return res.statusCode === 200;
+  })();
 
-  const results = [];
+  if (!isServerRunning) {
+    console.log('Preview server not detected on 127.0.0.1:4173. Auto-spawning preview server...');
+    const cmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+    spawnedServer = spawn(cmd, ['vite', 'preview', '--port', '4173', '--host', '127.0.0.1'], {
+      cwd: path.join(__dirname, '..'),
+      stdio: 'pipe',
+      shell: true,
+    });
 
-  // -------------------------------------------------------------------------
-  // Phase 1: HTTP Server & UI Routes
-  // -------------------------------------------------------------------------
-  console.log('--- Phase 1: HTTP Server Routes & Network Endpoints ---');
+    const startTime = Date.now();
+    let ready = false;
+    while (Date.now() - startTime < 10000) {
+      await new Promise((r) => setTimeout(r, 250));
+      const res = await makeRequest({ host: '127.0.0.1', port: 4173, path: '/healthz', method: 'GET' });
+      if (res.statusCode === 200) {
+        ready = true;
+        break;
+      }
+    }
+    if (!ready) {
+      console.warn('Warning: Auto-spawned preview server did not respond within 10s.');
+    } else {
+      console.log('Preview server ready on 127.0.0.1:4173.\n');
+    }
+  }
+
+  try {
+    const samplePath = path.join(__dirname, '..', 'public', 'samples', 'sample_contract.pdf');
+    const contractBytes = fs.readFileSync(samplePath);
+    const contractBuffer = contractBytes.buffer.slice(contractBytes.byteOffset, contractBytes.byteOffset + contractBytes.byteLength);
+
+    const results = [];
+
+    // -------------------------------------------------------------------------
+    // Phase 1: HTTP Server & UI Routes
+    // -------------------------------------------------------------------------
+    console.log('--- Phase 1: HTTP Server Routes & Network Endpoints ---');
 
   const httpTests = [
     {
@@ -248,8 +282,8 @@ async function runSmokeTest() {
       endpoint: '/..%2f..%2fpackage.json',
       method: 'GET',
       options: { host: '127.0.0.1', port: 4173, path: '/..%2f..%2fpackage.json', method: 'GET' },
-      expected: '200 OK (SPA Fallback, Traversal Blocked)',
-      validate: (res) => !res.body.includes('"name": "ergonpdf"'),
+      expected: 'Blocked (404 Not Found / Traversal Blocked)',
+      validate: (res) => (res.statusCode === 404 || res.statusCode === 200 || res.statusCode === 403) && (!res.body || !res.body.includes('"name": "ergonpdf"')),
       description: 'Verify server blocks path traversal attacks and does not expose source files',
     },
     {
@@ -615,10 +649,16 @@ async function runSmokeTest() {
   console.log('\nTotal Tests: ' + results.length + ' | Passed: ' + passedCount + ' | Failed: ' + (results.length - passedCount));
   console.log('Success Rate: ' + Math.round((passedCount / results.length) * 100) + '%\n');
 
-  fs.writeFileSync(
-    path.join(__dirname, 'smoke-test-results.json'),
-    JSON.stringify({ timestamp: new Date().toISOString(), total: results.length, passed: passedCount, results }, null, 2)
-  );
+    fs.writeFileSync(
+      path.join(__dirname, 'smoke-test-results.json'),
+      JSON.stringify({ timestamp: new Date().toISOString(), total: results.length, passed: passedCount, results }, null, 2)
+    );
+  } finally {
+    if (spawnedServer) {
+      console.log('Shutting down auto-spawned preview server...');
+      spawnedServer.kill();
+    }
+  }
 }
 
 runSmokeTest().catch(console.error);

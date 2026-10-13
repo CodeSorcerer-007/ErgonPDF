@@ -86,10 +86,11 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
               Settings & Privacy
             </button>
             <a 
-              href="https://github.com/ergonpdf/ergonpdf" 
+              href="https://github.com/CodeSorcerer-007/ErgonPDF" 
               target="_blank" 
               rel="noopener noreferrer"
               className="btn btn-ghost btn-sm"
+              aria-label="ErgonPDF on GitHub (opens in new tab)"
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px' }}
             >
               <GithubIcon size={14} />
