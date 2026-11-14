@@ -1,0 +1,71 @@
+# ErgonPDF - Launch Copy & Social Snippets
+
+---
+
+### Option A: X / Twitter (Punchy, High Engagement)
+Stop uploading your bank statements, tax returns, and contracts to random PDF SaaS servers.
+
+Meet ErgonPDF: 43 professional PDF tools running 100% locally in your browser via WebAssembly.
+
+🔒 Zero bytes leave your device
+⚡ Client-side WASM (pdf-lib, PDF.js, MuPDF)
+💻 Native Windows 1-click desktop app (.bat installer)
+✨ 100% Free & MIT Open Source
+
+Try it & grab the offline installer:
+👉 https://github.com/Sivakorn-S/ErgonPDF
+
+#OpenSource #WebAssembly #PrivacyFirst #DevTools #Windows
+
+---
+
+### Option B: LinkedIn / Tech Communities (Narrative, Problem-First)
+Every month, millions of sensitive documents — financial records, legal agreements, NDAs — get uploaded to cloud PDF converters. Once they hit external servers, you have zero guarantee where your data ends up or how long it’s cached.
+
+We built ErgonPDF to solve this properly.
+
+ErgonPDF is a local-first, privacy-native PDF power suite featuring 43 essential utilities:
+• Organize & Edit: Merge, Split, Reorder, Rotate, Crop, Extract Pages
+• Convert: PDF to Word, Excel, PowerPoint, Images, and vice versa
+• Security: Encrypt, Decrypt, Redact, Sign, Watermark
+• Optimization: Lossless Compress, OCR, Flatten, Metadata Stripping
+
+How it works:
+Every single operation runs strictly on your machine using compiled WebAssembly (pdf-lib & PDF.js). Your browser becomes the workstation. Disconnect your Wi-Fi — it works completely offline.
+
+And now: It includes a 1-click native Windows desktop installer (`install-ergonpdf.bat`) that creates Start Menu & Desktop shortcuts and binds to `127.0.0.1:4173` with zero external dependencies.
+
+100% Free, zero telemetry, MIT License.
+
+Check out the repo, star it, and run it locally:
+🔗 https://github.com/Sivakorn-S/ErgonPDF
+
+---
+
+### Option C: Hacker News / Reddit (Show HN / r/selfhosted / r/privacy)
+Show HN: ErgonPDF – 43 PDF tools running 100% client-side via WebAssembly
+
+Most online PDF utilities require uploading files to third-party backends. For confidential documents, that’s an unnecessary compliance and privacy headache.
+
+ErgonPDF brings 43 PDF utilities into a fast, local-first interface:
+- All PDF manipulation, encryption, OCR, and conversion happen in-memory via client-side WASM.
+- Zero network requests are made during processing; zero bytes leave your device.
+- Windows users can install it as a standalone local app using the included offline batch installer, complete with Start Menu integration and zero telemetry.
+
+Code & releases: https://github.com/Sivakorn-S/ErgonPDF
+
+Feedback and PRs welcome!
+
+---
+
+### Option D: GitHub README Hero Snippet
+```markdown
+<div align="center">
+  <img src="brag-output/brag.gif" alt="ErgonPDF Launch Demo" width="100%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);" />
+
+  <p align="center">
+    <strong>Stop uploading private documents to cloud servers.</strong><br>
+    43 local-first PDF tools running entirely on your machine via WebAssembly.
+  </p>
+</div>
+```
