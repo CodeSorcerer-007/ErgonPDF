@@ -1,0 +1,30 @@
+{
+  "name": "ErgonPDF — The Privacy-First PDF Workspace",
+  "short_name": "ErgonPDF",
+  "description": "Open-source, privacy-first all-in-one PDF workspace. Process documents 100% locally in your browser with zero server uploads.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
