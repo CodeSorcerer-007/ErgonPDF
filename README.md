@@ -74,6 +74,19 @@ ErgonPDF organizes 43 precision utilities across six operational intent groups:
 
 ## Quickstart
 
+### Windows Desktop App Installation (One-Click)
+
+ErgonPDF can be installed on Windows as a native desktop application with Start Menu and Desktop shortcuts:
+
+1. Clone or download this repository.
+2. Double-click **`install-ergonpdf.bat`**.
+3. The installer automatically checks or installs Node.js, deploys ErgonPDF to `%LOCALAPPDATA%\ErgonPDF`, creates Desktop & Start Menu shortcuts, and registers ErgonPDF in Windows Installed Apps.
+4. Launch anytime from your Desktop icon or Start Menu!
+
+For details, see [installer/README-INSTALLER.md](installer/README-INSTALLER.md).
+
+---
+
 ### Prerequisites
 - **Node.js**: Version 18.0.0 or higher (Node 20 or 22 LTS recommended)
 - **npm**: Version 9.0.0 or higher
