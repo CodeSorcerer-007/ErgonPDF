@@ -11,6 +11,9 @@
     "preview": "vite preview",
     "smoke-test": "node scripts/smoke-test.js",
     "test-features": "node scripts/test-features.js",
+    "test-server": "node scripts/test-server.cjs",
+    "serve": "node installer/serve.cjs",
+    "package:windows": "node scripts/package-windows-installer.cjs",
     "create-tool": "node scripts/create-tool.js",
     "generate-samples": "node scripts/generate-samples.js"
   },
@@ -29,6 +32,7 @@
   "devDependencies": {
     "@types/canvas-confetti": "1.9.0",
     "@types/node": "24.13.3",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.1.0",
