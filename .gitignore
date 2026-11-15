@@ -33,3 +33,16 @@ scripts/smoke-test-results.json
 .env.*
 !.env.example
 
+# Runtime state
+installer/.ergon_runtime.json
+
+# Local test scripts
+*.test.cjs
+*.temp.cjs
+
+# OS artifacts
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini
+
+

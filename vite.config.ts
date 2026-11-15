@@ -83,6 +83,7 @@ export default defineConfig({
     port: 4173,
   },
   build: {
+    sourcemap: false,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {

@@ -656,9 +656,23 @@ async function runSmokeTest() {
   } finally {
     if (spawnedServer) {
       console.log('Shutting down auto-spawned preview server...');
-      spawnedServer.kill();
+      if (process.platform === 'win32' && spawnedServer.pid) {
+        try {
+          const { execSync } = await import('child_process');
+          execSync(`taskkill /pid ${spawnedServer.pid} /T /F`, { stdio: 'ignore' });
+        } catch {
+          spawnedServer.kill();
+        }
+      } else {
+        spawnedServer.kill();
+      }
     }
   }
 }
 
-runSmokeTest().catch(console.error);
+runSmokeTest()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

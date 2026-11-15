@@ -1,5 +1,9 @@
 /**
- * Packages the ErgonPDF Windows Installer into a ready-to-distribute ZIP archive.
+ * @file package-windows-installer.cjs
+ * @description Packages the ErgonPDF Windows Installer into a ready-to-distribute, self-contained ZIP archive.
+ * Includes root launcher scripts, offline runtime server, bundled static assets, and pre-built distribution files.
+ *
+ * @license MIT
  */
 
 const fs = require('fs');
@@ -10,6 +14,9 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 const RELEASE_DIR = path.resolve(ROOT_DIR, 'release');
 const ZIP_NAME = 'ErgonPDF-v1.2.0-Windows-Setup.zip';
 
+// Ignore runtime cache or OS metadata files
+const IGNORED_FILES = new Set(['.ergon_runtime.json', '.DS_Store', 'Thumbs.db', 'ehthumbs.db', 'desktop.ini']);
+
 if (!fs.existsSync(RELEASE_DIR)) {
   fs.mkdirSync(RELEASE_DIR, { recursive: true });
 }
@@ -17,6 +24,9 @@ if (!fs.existsSync(RELEASE_DIR)) {
 function addDirectoryToZip(zip, folderPath, zipPath = '') {
   const items = fs.readdirSync(folderPath);
   for (const item of items) {
+    if (IGNORED_FILES.has(item) || item.endsWith('.tmp') || item.endsWith('.log')) {
+      continue;
+    }
     const fullPath = path.join(folderPath, item);
     const itemZipPath = zipPath ? `${zipPath}/${item}` : item;
     const stat = fs.statSync(fullPath);

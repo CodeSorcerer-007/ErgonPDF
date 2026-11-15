@@ -1,3 +1,22 @@
+<#
+.SYNOPSIS
+    Generates high-resolution application icons and multi-resolution Windows ICO file for ErgonPDF.
+
+.DESCRIPTION
+    Uses System.Drawing to render the official ErgonPDF brand mark (dark container, gradient document
+    polygon, folded corner, and white loop symbol) across sizes: 16x16, 32x32, 48x48, 64x64, 128x128,
+    192x192, 256x256, and 512x512. Saves PNG icons and encodes a multi-frame ICO file for Windows desktop shortcuts.
+
+.NOTES
+    Author: ErgonPDF Contributors
+    License: MIT
+#>
+
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = "Stop"
+
 Add-Type -AssemblyName System.Drawing
 
 function Create-ErgonIcon([int]$size) {
