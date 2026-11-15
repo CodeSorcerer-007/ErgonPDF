@@ -13,9 +13,9 @@ This document outlines the architectural and product roadmap for ErgonPDF. Horiz
 
 ---
 
-## Horizon 1: Core Modularization and Usability (v1.2.x - v1.3.x)
+## Horizon 1: Core Modularization, Desktop Architecture & Usability (v1.2.x - v1.3.x)
 
-Focus: Refactoring monolithic modules into composable components, finalizing client settings persistence, hardening keyboard accessibility, and improving text extraction pipelines.
+Focus: Refactoring monolithic modules into composable components, finalizing client settings persistence, hardening keyboard accessibility, offline desktop installation, and comprehensive quality assurance.
 
 | Feature | Description | Complexity | Status |
 | :--- | :--- | :--- | :--- |
@@ -26,6 +26,10 @@ Focus: Refactoring monolithic modules into composable components, finalizing cli
 | Universal Tool Grid Routing | Route all 43 registered tools (including blank PDF creation, webcam scanner, URL converter, and image converters) through direct actions. | Medium | Completed |
 | WCAG 2.1 AA Accessibility | Implement ARIA roles, live regions, combobox semantics, focus-visible outlines, and screen-reader utility classes. | Medium | Completed |
 | Automated Engine Integrity Suite | Expand `scripts/test-features.js` to assert structural validity and byte integrity across all static engine methods. | Medium | Completed |
+| 1-Click Windows Desktop Installer | Self-contained Windows installer batch script, lightweight loopback server, desktop shortcuts, and multi-res `.ico` brand icons. | High | Completed |
+| Fully Offline Font Bundling | Bundle WOFF2 fonts for offline execution with zero CDN or external network dependencies. | Low | Completed |
+| Standard Client-Side QR Engine | Pure client-side SVG/PNG QR generation using vetted local npm package. | Low | Completed |
+| Professional Documentation Library | Complete suite: Privacy Manifesto, FAQ, Comparison Guide, Tools Reference, and Contributor Guides. | Medium | Completed |
 
 ---
 

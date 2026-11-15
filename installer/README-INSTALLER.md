@@ -41,6 +41,29 @@ You can cleanly remove ErgonPDF at any time:
 
 ---
 
+## 🔧 Troubleshooting & Advanced Options
+
+### Port Conflicts
+By default, the ErgonPDF local desktop server attempts to bind to `127.0.0.1:8074`. If port 8074 is already utilized by another service on your system, the server automatically scans and binds to the next available loopback port (e.g. `8075`, `8076`...) and records the active port in `%LOCALAPPDATA%\ErgonPDF\.ergon_runtime.json`.
+You can also force a specific port by running:
+```cmd
+node serve.cjs --port 9000
+```
+
+### Windows SmartScreen or Antivirus Prompts
+Because batch scripts (`.bat`) and VBScript background launchers (`run-hidden.vbs`) are not digitally signed with an expensive enterprise certificate, Windows SmartScreen may display an *"Unrecognized app"* warning.
+1. Click **More info**.
+2. Click **Run anyway**.
+Every line of code in the installer is open source and readable in plaintext for full security auditing.
+
+### Air-Gapped Deployment
+To install on an isolated machine with no internet connection:
+1. Build or download the pre-packaged zip from releases (`ErgonPDF-v1.2.0-Windows-Setup.zip`).
+2. Copy the zip file and an offline Node.js portable zip or installer to a USB flash drive.
+3. Extract and run `install-ergonpdf.bat`. Zero internet connectivity is required.
+
+---
+
 ## 🔒 Security & Privacy Guarantee
 
 - **Zero Cloud Uploads**: Documents never leave your computer.

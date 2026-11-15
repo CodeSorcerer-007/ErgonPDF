@@ -1,31 +1,61 @@
 # ErgonPDF
 
+<div align="center">
+
+![ErgonPDF Demo](brag-output/brag.gif)
+
+### 43 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever.
+
 **The Open-Source, Privacy-First Client-Side Document Workspace.**
 
-ErgonPDF is a comprehensive document utility suite that processes, optimizes, secures, and analyzes PDF files entirely within the user's browser runtime. By executing document transformations via WebAssembly and Web Workers, ErgonPDF eliminates file uploads to remote servers, providing total data confidentiality and instant operational performance.
-
----
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+[![CI](https://github.com/CodeSorcerer-007/ErgonPDF/actions/workflows/ci.yml/badge.svg)](https://github.com/CodeSorcerer-007/ErgonPDF/actions/workflows/ci.yml)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Processing: 100% Local](https://img.shields.io/badge/Processing-100%25%20Local%20(WASM)-10b981?style=flat-square)](https://webassembly.org/)
-[![Docker: Ready](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat-square&logo=docker)](Dockerfile)
+[![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-success?style=flat-square)](docs/PRIVACY.md)
 [![Engine Integrity: 100% Pass](https://img.shields.io/badge/Engine%20Tests-20%2F20%20Pass-brightgreen.svg?style=flat-square)](scripts/test-features.js)
 [![Smoke Tests: 85 Endpoints](https://img.shields.io/badge/Smoke%20Tests-85%2F85%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
+
+[**Windows 1-Click Install**](#windows-desktop-app-installation-one-click) • [**Privacy Manifesto**](docs/PRIVACY.md) • [**FAQ**](docs/FAQ.md) • [**Tools Reference (43 Tools)**](docs/TOOLS_REFERENCE.md) • [**Comparison Matrix**](docs/COMPARISON.md) • [**Architecture**](docs/ARCHITECTURE.md)
+
+</div>
 
 ---
 
-## Table of Contents
+> 🔒 **The Non-Negotiable Privacy Invariant**:  
+> Most online PDF editors (ILovePDF, SmallPDF, Adobe) require uploading your files over the public internet to third-party cloud servers. **ErgonPDF never uploads your files.** Every operation (merge, split, OCR, sign, redact, compress, repair, and convert) executes strictly in your local browser memory via WebAssembly. Disconnect your Wi-Fi or run in an air-gapped facility—ErgonPDF never skips a beat.
+
+---
+
+## ⚡ Comparison: Why ErgonPDF?
+
+| Feature | ErgonPDF | ILovePDF | SmallPDF | Adobe Acrobat Pro | PDF24 | Stirling-PDF |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Pricing** | **100% Free & Open Source** | Freemium ($84/yr) | Freemium ($108/yr) | Paid ($239.88/yr) | Free Proprietary | Free (GPLv3) |
+| **Processing Location** | **100% Client-Side** | Cloud Server | Cloud Server | Cloud / Local | Local Desktop | Local Server |
+| **File Upload Required?** | ❌ **Never** | ✅ Yes | ✅ Yes | ⚠️ Cloud features | ❌ No | ⚠️ Upload to Docker |
+| **Total Tool Count** | **43 Tools** | ~25 Tools | ~20 Tools | ~30 Tools | ~28 Tools | ~45 Tools |
+| **Offline Operation** | ✅ **Full Offline** | ❌ No | ❌ No | ⚠️ Paid | ✅ Yes | ⚠️ Needs Docker |
+| **No Account / Login Needed** | ✅ **Yes** | ⚠️ Limited | ⚠️ Limited | ❌ Subscription required | ✅ Yes | ✅ Yes |
+| **Windows 1-Click Installer** | ✅ **Included (.bat)** | ⚠️ Desktop (Paid) | ⚠️ Desktop (Paid) | ✅ Native Win32 | ✅ Windows EXE | ❌ Requires Docker |
+| **Telemetry & Trackers** | ❌ **Zero Tracking** | ⚠️ Heavy Tracking | ⚠️ Heavy Tracking | ⚠️ Heavy Cloud Sync | ⚠️ Minor | ❌ None |
+| **HIPAA / Air-Gap Ready** | ✅ **100% Compliant** | ❌ Cloud risk | ❌ Cloud risk | ⚠️ Requires BAA | ✅ Yes | ✅ Yes |
+
+*See our full [Benchmark & Comparison Guide](docs/COMPARISON.md) for deep technical and financial analysis.*
+
+---
+
+## 📚 Table of Contents
 
 - [Overview](#overview)
 - [Privacy Guarantee](#privacy-guarantee)
-- [Feature Directory](#feature-directory)
-- [User & Deployment Guide](docs/HOW_TO_USE.md)
-- [Quickstart](#quickstart)
+- [Feature Directory (43 Tools)](#feature-directory)
+- [Windows Desktop App Installation](#windows-desktop-app-installation-one-click)
+- [Quickstart & Local Development](#quickstart)
 - [Architecture](#architecture)
 - [Usage Examples](#usage-examples)
-- [API Documentation](#api-documentation)
-- [Self-Hosting and Container Deployment](#self-hosting-and-container-deployment)
+- [Documentation Library](#documentation-library)
 - [Verification and Testing](#verification-and-testing)
 - [Contributing](#contributing)
 - [License](#license)
@@ -311,6 +341,23 @@ docker run -d -p 8080:80 --name ergonpdf ergonpdf:1.2.0
 ### Container Health Probes
 - **Liveness Probe**: `GET http://localhost:8080/healthz` (returns `200 OK`)
 - **Engine Status**: `GET http://localhost:8080/api/health` (returns JSON status payload)
+
+---
+
+## Documentation Library
+
+ErgonPDF provides exhaustive documentation covering engineering design, privacy invariants, security auditing, and user workflows:
+
+- 🔒 **[Privacy Policy & Security Manifesto](docs/PRIVACY.md)** — Architectural explanation of our zero-upload guarantee, local WebAssembly sandbox, and compliance suitability (HIPAA, GDPR, NDAs).
+- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Answers to 18 common questions regarding memory limits, encryption standards, offline operation, and desktop installation.
+- ⚡ **[Comparison & Benchmark Guide](docs/COMPARISON.md)** — Detailed feature, cost, and architectural comparison against Adobe Acrobat Pro, ILovePDF, SmallPDF, PDF24, and Stirling-PDF.
+- 🛠️ **[Tools Reference Manual](docs/TOOLS_REFERENCE.md)** — Complete operational specifications for all 43 built-in tools across 9 categories.
+- 🏗️ **[System Architecture](docs/ARCHITECTURE.md)** — Deep dive into the reactive UI layer, Web Worker isolation, WASM binary bridges, and memory lifecycles.
+- 📖 **[User & Deployment Guide](docs/HOW_TO_USE.md)** — Practical walkthroughs for web and self-hosted environments (Docker, Nginx, Cloudflare Pages, Vercel).
+- 💻 **[Windows Desktop Installer Guide](installer/README-INSTALLER.md)** — Detailed instructions for 1-click Windows setup, headless loopback server, and uninstallation.
+- 👩‍💻 **[Detailed Contributor Guide](docs/CONTRIBUTING_DETAILED.md)** — Step-by-step developer tutorial on creating new tools, running test suites, and submitting PRs.
+- 🤖 **[AI Agent Guidelines](AGENTS.md)** — Architectural rules and quality gates for automated coding agents.
+- 🚀 **[Marketing & Launch Kit](docs/MARKETING_LAUNCH_KIT.md)** — Ready-to-use launch copy for Hacker News, Reddit, Product Hunt, Twitter/X, and LinkedIn.
 
 ---
 

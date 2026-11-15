@@ -116,6 +116,23 @@ The document processing lifecycle enforces end-to-end client-side isolation:
    - The resulting `Uint8Array` is packaged into a `Blob` (`application/pdf`, `image/png`, `application/zip`, or `application/msword`).
    - A temporal Object URL (`URL.createObjectURL(blob)`) is generated, clicked via an offscreen `<a>` element, and promptly revoked to avoid browser memory leaks.
 
+```mermaid
+flowchart TD
+    A["User Selects Local PDF"] --> B["File.arrayBuffer() (Local RAM)"]
+    B --> C["PDFEngineService.inspectDocument()"]
+    C --> D["PDF.js Offscreen Canvas (Thumbnails)"]
+    C --> E["UniversalWorkspace Loaded"]
+    E --> F{"User Action / Tool Choice"}
+    F -->|"Organize / Split / Reorder"| G["pdf-lib Catalog Manipulation"]
+    F -->|"OCR Text Recognition"| H["Tesseract.js Web Worker (WASM)"]
+    F -->|"Sign / Redact / Annotate"| I["Canvas Compositor + Coordinate Mapping"]
+    F -->|"Compress / Defragment"| J["Stream Optimization & Object Deduplication"]
+    F -->|"Format Conversion"| K["PDF.js Text/Image Extraction to DOCX/CSV/PNG"]
+    G & H & I & J & K --> L["Uint8Array Binary Stream Generated"]
+    L --> M["Blob & URL.createObjectURL()"]
+    M --> N["Browser Direct Download (Zero Network Transmission)"]
+```
+
 ---
 
 ## 4. Engine API Reference: PDFEngineService

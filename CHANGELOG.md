@@ -7,9 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - 2026-09-07
+## [1.2.0] - 2026-11-15
 
 ### Added
+- **Windows Desktop Application & Offline Installer**:
+  - Added 1-click Windows installer (`install-ergonpdf.bat` and `installer/install-ergonpdf.bat`) that configures a local background loopback server (`127.0.0.1:8096`), generates Desktop and Start Menu shortcuts, and integrates a custom multi-resolution `.ico` brand icon.
+  - Added standalone static server (`installer/serve.cjs`) with zero external runtime dependencies, automatic port fallback, and background execution (`installer/run-hidden.vbs`).
+  - Added lifecycle management scripts: `installer/stop-ergonpdf.bat` and `installer/uninstall.bat`.
+  - Added standalone installer packager (`scripts/package-windows-installer.cjs`) producing ready-to-distribute `.zip` bundles.
+- **Offline Font & Asset Bundling**:
+  - Bundled local WOFF2 font files for Instrument Serif, Plus Jakarta Sans, and JetBrains Mono directly into `public/fonts/`, achieving complete offline operation with zero CDN dependencies.
+- **Client-Side QR Code Engine**:
+  - Integrated local `qrcode` npm package in `src/services/qrGenerator.ts`, eliminating external network API calls.
+- **Professional Documentation Suite**:
+  - Created [`docs/PRIVACY.md`](docs/PRIVACY.md) detailing the local-first zero-upload security manifesto and regulatory compliance (HIPAA, GDPR, NDAs).
+  - Created [`docs/FAQ.md`](docs/FAQ.md) answering 18 questions on performance, encryption, and installation.
+  - Created [`docs/COMPARISON.md`](docs/COMPARISON.md) benchmarking ErgonPDF against Adobe Acrobat Pro, ILovePDF, SmallPDF, PDF24, and Stirling-PDF.
+  - Created [`docs/TOOLS_REFERENCE.md`](docs/TOOLS_REFERENCE.md) providing technical specifications for all 43 built-in tools.
+  - Created [`docs/CONTRIBUTING_DETAILED.md`](docs/CONTRIBUTING_DETAILED.md) and [`AGENTS.md`](AGENTS.md) for human and AI contributors.
+  - Created [`docs/MARKETING_LAUNCH_KIT.md`](docs/MARKETING_LAUNCH_KIT.md) containing ready-to-post Hacker News, Reddit, Product Hunt, Twitter, and LinkedIn campaigns.
+- **GitHub Governance & Automation**:
+  - Added `.github/workflows/ci.yml` running lint, build, engine tests, and smoke tests on push/PR.
+  - Added `.github/ISSUE_TEMPLATE/bug_report.md` and `feature_request.md`.
+  - Added `.github/pull_request_template.md` and `.github/dependabot.yml`.
 - **Workspace Modular Decomposition**: Decomposed monolithic workspace into 36 modular, typed tool panels under [`src/components/workspace/`](src/components/workspace/).
 - **Native HTML5 Drag-and-Drop Reordering**: Implemented native page card dragging and reordering with visual highlight states in [`ThumbnailSidebar.tsx`](src/components/workspace/ThumbnailSidebar.tsx).
 - **Real-Document AI Extraction Pipeline**: Connected AI Studio to [`PDFEngineService.extractFullText()`](src/services/pdfEngine.ts) on document load, providing real semantic analysis and a new Raw Text viewer tab.
