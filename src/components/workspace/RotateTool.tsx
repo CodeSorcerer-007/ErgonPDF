@@ -1,13 +1,20 @@
 import React from 'react';
-import { RotateCw, RotateCcw, RefreshCw } from 'lucide-react';
+import { RotateCw, RotateCcw, RefreshCw, Download } from 'lucide-react';
 import type { PDFPageInfo } from '../../types/pdf';
 
 export interface RotateToolProps {
   pages: PDFPageInfo[];
   onUpdatePages: (newPages: PDFPageInfo[]) => void;
+  isProcessing?: boolean;
+  onProcess?: () => void;
 }
 
-export const RotateTool: React.FC<RotateToolProps> = ({ pages, onUpdatePages }) => {
+export const RotateTool: React.FC<RotateToolProps> = ({
+  pages,
+  onUpdatePages,
+  isProcessing = false,
+  onProcess,
+}) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div>
@@ -71,6 +78,19 @@ export const RotateTool: React.FC<RotateToolProps> = ({ pages, onUpdatePages }) 
           <span>Reset All Rotations to 0°</span>
         </button>
       </div>
+
+      {onProcess && (
+        <button
+          type="button"
+          onClick={onProcess}
+          disabled={isProcessing}
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Download size={14} />
+          <span>Apply Rotations & Export PDF</span>
+        </button>
+      )}
     </div>
   );
 };

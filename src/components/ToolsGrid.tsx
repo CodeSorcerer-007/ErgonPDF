@@ -154,6 +154,14 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
 
   const categories = Object.keys(CATEGORY_LABELS);
 
+  const categoryCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { all: TOOLS_REGISTRY.length };
+    for (const tool of TOOLS_REGISTRY) {
+      counts[tool.category] = (counts[tool.category] || 0) + 1;
+    }
+    return counts;
+  }, []);
+
   const filteredTools = TOOLS_REGISTRY.filter((tool) => {
     const matchesCategory = 
       selectedCategory === 'all' 
@@ -261,12 +269,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
             {tool.name}
           </h3>
 
-          <p style={{
-            fontSize: '12.5px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.48,
-            marginBottom: '16px',
-          }}>
+          <p className="tool-card-description">
             {tool.description}
           </p>
         </div>
@@ -299,8 +302,8 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
   };
 
   return (
-    <section style={{
-      maxWidth: '1160px',
+    <section className="tools-grid-section" style={{
+      maxWidth: '1200px',
       margin: '0 auto',
       padding: '24px 24px 72px',
     }}>
@@ -317,10 +320,10 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
       }}>
         <div>
           <h2 style={{
-            fontSize: '32px',
-            fontFamily: 'var(--font-serif)',
-            fontWeight: 400,
-            letterSpacing: '-0.01em',
+            fontSize: '26px',
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
             marginBottom: '4px',
             color: 'var(--text-primary)',
           }}>
@@ -331,7 +334,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           </p>
         </div>
 
-        {/* Search Input Filter */}
+        {/* Search Input Filter & Count */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -341,7 +344,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           borderRadius: 'var(--radius-md)',
           padding: '6px 12px',
           width: '100%',
-          maxWidth: '280px',
+          maxWidth: '300px',
         }}>
           <Search size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
           <input 
@@ -373,7 +376,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
         </div>
       </div>
 
-      {/* Architectural Category Pills */}
+      {/* Architectural Category Pills with Counts */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -395,17 +398,27 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
               border: '1px solid ' + (selectedCategory === 'favorites' ? 'var(--text-primary)' : 'var(--border-subtle)'),
               fontSize: '12px',
               fontWeight: selectedCategory === 'favorites' ? 600 : 500,
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: '5px',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
           >
             <Star size={12} fill="currentColor" />
-            <span>Favorites ({favorites.length})</span>
+            <span>Favorites</span>
+            <span style={{
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono)',
+              opacity: selectedCategory === 'favorites' ? 0.9 : 0.6,
+            }}>
+              {favorites.length}
+            </span>
           </button>
         )}
         {categories.map((catKey) => {
           const isActive = selectedCategory === catKey;
+          const count = categoryCounts[catKey] ?? 0;
           return (
             <button
               key={catKey}
@@ -419,9 +432,21 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
                 border: '1px solid ' + (isActive ? 'var(--text-primary)' : 'var(--border-subtle)'),
                 fontSize: '12px',
                 fontWeight: isActive ? 600 : 500,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
               }}
             >
-              {CATEGORY_LABELS[catKey]}
+              <span>{CATEGORY_LABELS[catKey]}</span>
+              <span style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                opacity: isActive ? 0.9 : 0.6,
+              }}>
+                {count}
+              </span>
             </button>
           );
         })}
@@ -478,11 +503,11 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
               }}>
                 <div>
                   <h3 style={{
-                    fontSize: '22px',
-                    fontFamily: 'var(--font-serif)',
-                    fontWeight: 400,
+                    fontSize: '20px',
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 600,
                     color: 'var(--text-primary)',
-                    letterSpacing: '-0.01em',
+                    letterSpacing: '-0.015em',
                   }}>
                     Frequently Used Tools
                   </h3>
@@ -521,11 +546,11 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
                 }}>
                   <div>
                     <h3 style={{
-                      fontSize: '22px',
-                      fontFamily: 'var(--font-serif)',
-                      fontWeight: 400,
+                      fontSize: '20px',
+                      fontFamily: 'var(--font-heading)',
+                      fontWeight: 600,
                       color: 'var(--text-primary)',
-                      letterSpacing: '-0.01em',
+                      letterSpacing: '-0.015em',
                     }}>
                       {group.title}
                     </h3>

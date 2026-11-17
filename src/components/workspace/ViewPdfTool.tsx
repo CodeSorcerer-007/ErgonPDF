@@ -1,17 +1,19 @@
 import React from 'react';
-import { Eye, ExternalLink, ZoomIn, ZoomOut } from 'lucide-react';
+import { Eye, ExternalLink, ZoomIn, ZoomOut, Printer, Download } from 'lucide-react';
 import type { PDFDocumentState } from '../../types/pdf';
 
 export interface ViewPdfToolProps {
   docState: PDFDocumentState;
   zoomScale: number;
   onZoomChange: (scale: number) => void;
+  onProcess?: () => void;
 }
 
 export const ViewPdfTool: React.FC<ViewPdfToolProps> = ({
   docState,
   zoomScale,
   onZoomChange,
+  onProcess,
 }) => {
   const handleOpenFullscreen = () => {
     try {
@@ -27,6 +29,24 @@ export const ViewPdfTool: React.FC<ViewPdfToolProps> = ({
       } else {
         document.exitFullscreen?.();
       }
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownloadDirect = () => {
+    if (onProcess) {
+      onProcess();
+    } else {
+      const blob = new Blob([docState.arrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = docState.name.endsWith('.pdf') ? docState.name : `${docState.name}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -123,16 +143,38 @@ export const ViewPdfTool: React.FC<ViewPdfToolProps> = ({
         />
       </div>
 
-      {/* Fullscreen Button */}
-      <button
-        type="button"
-        onClick={handleOpenFullscreen}
-        className="btn btn-primary btn-sm"
-        style={{ width: '100%' }}
-      >
-        <ExternalLink size={14} />
-        <span>Open in Fullscreen Tab</span>
-      </button>
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button
+          type="button"
+          onClick={handleOpenFullscreen}
+          className="btn btn-secondary btn-sm"
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <ExternalLink size={14} />
+          <span>Open in Fullscreen Tab</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="btn btn-secondary btn-sm"
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Printer size={14} />
+          <span>Print Document</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownloadDirect}
+          className="btn btn-primary btn-sm"
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Download size={14} />
+          <span>Download PDF Document</span>
+        </button>
+      </div>
     </div>
   );
 };

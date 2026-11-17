@@ -7,15 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.2.0] - 2026-11-15
+## [1.2.0] - 2026-11-17
 
 ### Added
-- **Complete PDF24 Catalog Cloning & Expansion (126 Tools)**:
-  - Reverse-engineered and integrated all 124 public tools and converters from PDF24 (`https://tools.pdf24.org/en/`), achieving 100% functional parity.
-  - Retained ErgonPDF's signature offline capabilities: `ai-chat` (AI Document Studio with zero-cloud semantic Q&A and citations) and `alternate-mix` (Scanner duplex odd/even interleaving), establishing a unified catalog of **126 precision offline PDF utilities**.
-  - Enforced the **Non-Negotiable Privacy Invariant**: all 126 tools execute strictly in client browser memory via WebAssembly/pure JavaScript with zero remote uploads, third-party servers, or telemetry tracking.
-  - Implemented dynamic UI routing and dispatch across `App.tsx` (modals, batch file pickers, converters) and `UniversalWorkspace.tsx` (tab panels & contextual control drawers).
-  - Updated `ToolsGrid.tsx` and `CommandPalette.tsx` to dynamically index and search all 126 tools with Lucide icons (added `Printer`).
+- **Complete 134-Tool Union Catalog (PDF24 + iLovePDF + Ergon Signatures)**:
+  - Reverse-engineered and integrated all 124 public tools from PDF24 and all 31 flagship tools from iLovePDF, establishing a unified catalog of **134 precision offline utilities**.
+  - Added dedicated modules for `translate-pdf` (multilingual layout-preserving translation), `pdf-summarize` (AI executive summarizer and clause review), `pdf-forms` (interactive form field builder & detector), `organize-pdf` (visual page reordering and curation), `rotate-pdf` (instant page rotation), `protect-pdf` (AES-256 encryption), `html-to-pdf` (vector HTML-to-PDF conversion), and `remove-blank-pages` (scanned document empty page scrubber).
+  - Enforced the **Non-Negotiable Privacy Invariant**: all 134 tools execute strictly in client browser memory via WebAssembly/pure JavaScript with zero remote uploads, third-party servers, or telemetry tracking.
+- **Comprehensive In-Panel Action & Execution Buttons**:
+  - Fixed workflow bottleneck where workspace panels offered options but lacked explicit completion triggers. Added prominent primary action buttons across all tools:
+    - `RotateTool`: Added "Apply Rotations & Export PDF".
+    - `RemovePagesTool`: Added "Apply Deletions & Export PDF".
+    - `SignTool`: Added "Burn Signatures & Download PDF".
+    - `RedactTool`: Added "Apply Permanent Redactions & Export PDF".
+    - `MetadataTool`: Added "Save Metadata & Export PDF".
+    - `CreateFormTool`: Added "Export Fillable PDF Form".
+    - `ViewPdfTool`: Added "Print Document" and "Download PDF Document".
+- **Rich Interactive Builders for Non-PDF Activities**:
+  - **Interactive Invoice & E-Invoice Generator (`InvoiceBuilderModal`)**: Complete invoice authoring system with live line-item arithmetic, customizable taxes, and one-click ZUGFeRD 2.2 / Factur-X / EN 16931 compliant XML export.
+  - **Executive Job Application Builder (`JobApplicationModal`)**: Targeted cover letter and resume generation with ATS-optimized vector typography.
+  - **Greeting Card & Photo Collage Creator (`CardCollageModal`)**: Custom landscape greeting cards and photo collages with selectable color palettes and embedded local photos.
+  - **Direct Image-to-Image Converters**: Converted `heic-to-jpg`, `heic-to-png`, `webp-to-jpg`, `webp-to-png`, `svg-to-jpg`, and `svg-to-png` to direct client-side Canvas conversions with instant single and batch image downloads.
 - **Offline Tesseract.js OCR Bundling**:
   - Bundled `eng.traineddata.gz` (10.4 MB), `worker.min.js`, `tesseract-core.wasm`, and `tesseract-core-simd-lstm.wasm` directly into `public/tesseract/`, eliminating external CDN and network fetches for OCR text recognition.
 - **Interactive Form Builder Dropdowns & Radios**:

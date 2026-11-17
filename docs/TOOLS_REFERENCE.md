@@ -1,23 +1,23 @@
 # ErgonPDF Tools Reference Manual
 
-> Exhaustive technical and functional reference for all 126 built-in PDF tools in ErgonPDF.  
+> Exhaustive technical and functional reference for all 134 built-in PDF tools in ErgonPDF.  
 > Every tool runs 100% locally in client browser memory via WebAssembly and JavaScript with zero server uploads or external telemetry.
 
 ---
 
-## Directory Overview (126 Precision Utilities)
+## Directory Overview (134 Precision Utilities)
 
-ErgonPDF provides complete 100% feature parity with PDF24's 124-tool public catalog, plus ErgonPDF's signature offline AI Document Studio and duplex scanner collation:
+ErgonPDF provides complete 100% feature parity with PDF24's 124-tool catalog and iLovePDF's 31-tool suite, plus ErgonPDF's signature offline AI Document Studio, interactive E-Invoice generator, and duplex scanner collation:
 
-1. [Organize & Layout (17 Tools)](#1-organize-layout)
+1. [Organize & Layout (20 Tools)](#1-organize-layout)
 2. [Convert & Transform (59 Tools)](#2-convert-transform)
-3. [Create & Capture (16 Tools)](#3-create-capture)
-4. [Edit & Annotate (9 Tools)](#4-edit-annotate)
+3. [Create & Capture (17 Tools)](#3-create-capture)
+4. [Edit & Annotate (10 Tools)](#4-edit-annotate)
 5. [Compress & Optimize (8 Tools)](#5-compress-optimize)
-6. [Security & Privacy (7 Tools)](#6-security-privacy)
+6. [Security & Privacy (8 Tools)](#6-security-privacy)
 7. [View & Compare (7 Tools)](#7-view-compare)
 8. [OCR & Text Extraction (2 Tools)](#8-ocr-text-extraction)
-9. [AI Document Studio (1 Tools)](#9-ai-document-studio)
+9. [AI Document Studio (3 Tools)](#9-ai-document-studio)
 
 ---
 

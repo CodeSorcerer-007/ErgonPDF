@@ -37,3 +37,5 @@ export * from './OcrTool';
 export * from './AnnotateTool';
 export * from './ViewPdfTool';
 export * from './AiChatTool';
+export * from './TranslatePdfTool';
+export * from './PdfSummarizeTool';

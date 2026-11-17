@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Trash2 } from 'lucide-react';
+import { ShieldCheck, Trash2, Download } from 'lucide-react';
 
 export interface MetadataToolProps {
   metadataFields: {
@@ -8,11 +8,15 @@ export interface MetadataToolProps {
     subject: string;
   };
   onMetadataFieldsChange: (fields: { title: string; author: string; subject: string }) => void;
+  isProcessing?: boolean;
+  onProcess?: () => void;
 }
 
 export const MetadataTool: React.FC<MetadataToolProps> = ({
   metadataFields,
   onMetadataFieldsChange,
+  isProcessing = false,
+  onProcess,
 }) => {
   const handleClearAll = () => {
     onMetadataFieldsChange({ title: '', author: '', subject: '' });
@@ -110,6 +114,19 @@ export const MetadataTool: React.FC<MetadataToolProps> = ({
           <Trash2 size={13} />
           <span>Clear All Metadata</span>
         </button>
+
+        {onProcess && (
+          <button
+            type="button"
+            onClick={onProcess}
+            disabled={isProcessing}
+            className="btn btn-primary"
+            style={{ width: '100%', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <Download size={14} />
+            <span>Save Metadata & Export PDF</span>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckSquare } from 'lucide-react';
+import { CheckSquare, Download } from 'lucide-react';
 import { PDFEngineService } from '../../services/pdfEngine';
 import type { PDFDocumentState } from '../../types/pdf';
 
@@ -12,6 +12,7 @@ export interface CreateFormToolProps {
   isProcessing: boolean;
   setIsProcessing: (val: boolean) => void;
   setProcessingStatus: (status: string) => void;
+  onProcess?: () => void;
 }
 
 export const CreateFormTool: React.FC<CreateFormToolProps> = ({
@@ -23,6 +24,7 @@ export const CreateFormTool: React.FC<CreateFormToolProps> = ({
   isProcessing,
   setIsProcessing,
   setProcessingStatus,
+  onProcess,
 }) => {
   const handleAddField = async () => {
     setIsProcessing(true);
@@ -110,6 +112,19 @@ export const CreateFormTool: React.FC<CreateFormToolProps> = ({
         <CheckSquare size={14} />
         <span>Add Field to Current Page</span>
       </button>
+
+      {onProcess && (
+        <button
+          type="button"
+          onClick={onProcess}
+          disabled={isProcessing}
+          className="btn btn-secondary btn-sm"
+          style={{ width: '100%', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Download size={14} />
+          <span>Export Fillable PDF Form</span>
+        </button>
+      )}
     </div>
   );
 };

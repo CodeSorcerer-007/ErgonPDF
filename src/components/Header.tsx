@@ -83,9 +83,9 @@ export const Header: React.FC<HeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontFamily: 'var(--font-serif)',
-          fontSize: '20px',
-          fontWeight: 400,
+          fontFamily: 'var(--font-heading)',
+          fontSize: '18px',
+          fontWeight: 700,
           lineHeight: 1,
         }}>
           E
@@ -93,16 +93,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
           <span style={{
-            fontFamily: 'var(--font-serif)',
-            fontSize: '23px',
-            letterSpacing: '-0.01em',
+            fontFamily: 'var(--font-heading)',
+            fontSize: '20px',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
             color: 'var(--text-primary)',
           }}>
             Ergon
           </span>
           <span style={{
             fontFamily: 'var(--font-body)',
-            fontSize: '11px',
+            fontSize: '10px',
             fontWeight: 700,
             letterSpacing: '0.12em',
             color: 'var(--accent-primary)',

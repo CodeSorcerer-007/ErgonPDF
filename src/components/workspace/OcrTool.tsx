@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScanText, Loader2, Copy, Check } from 'lucide-react';
+import { ScanText, Loader2, Copy, Check, Download } from 'lucide-react';
 
 export interface OcrToolProps {
   currentPageNum: number;
@@ -23,6 +23,17 @@ export const OcrTool: React.FC<OcrToolProps> = ({
     navigator.clipboard.writeText(ocrText);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    if (!ocrText) return;
+    const blob = new Blob([ocrText], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `page_${currentPageNum}_ocr.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -60,15 +71,27 @@ export const OcrTool: React.FC<OcrToolProps> = ({
             <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
               Recognized Text:
             </span>
-            <button
-              type="button"
-              onClick={handleCopy}
-              className={`btn btn-sm ${copied ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '11px', padding: '2px 8px' }}
-            >
-              {copied ? <Check size={12} /> : <Copy size={12} />}
-              <span>{copied ? 'Copied!' : 'Copy OCR Text'}</span>
-            </button>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className={`btn btn-sm ${copied ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontSize: '11px', padding: '2px 8px' }}
+              >
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copied ? 'Copied!' : 'Copy'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '11px', padding: '2px 8px' }}
+                title="Download recognized text as .txt"
+              >
+                <Download size={12} />
+                <span>.txt</span>
+              </button>
+            </div>
           </div>
           <textarea
             readOnly

@@ -57,11 +57,11 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
       }}>
         <div>
           <h2 style={{
-            fontSize: '24px',
-            fontFamily: 'var(--font-serif)',
-            fontWeight: 400,
+            fontSize: '22px',
+            fontFamily: 'var(--font-heading)',
+            fontWeight: 600,
             color: 'var(--text-primary)',
-            letterSpacing: '-0.015em',
+            letterSpacing: '-0.02em',
             margin: 0,
           }}>
             Frequently Used Tools
@@ -167,16 +167,7 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
                   {tool.name}
                 </h3>
 
-                <p style={{
-                  fontSize: '12.5px',
-                  color: 'var(--text-secondary)',
-                  lineHeight: '1.45',
-                  marginBottom: '14px',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}>
+                <p className="tool-card-description">
                   {tool.description}
                 </p>
               </div>

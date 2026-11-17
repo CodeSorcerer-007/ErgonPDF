@@ -4,7 +4,7 @@
 
 ![ErgonPDF Demo](brag-output/brag.gif)
 
-### 126 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever.
+### 134 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever.
 
 **The Open-Source, Privacy-First Client-Side Document Workspace.**
 
@@ -14,10 +14,10 @@
 [![Processing: 100% Local](https://img.shields.io/badge/Processing-100%25%20Local%20(WASM)-10b981?style=flat-square)](https://webassembly.org/)
 [![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-success?style=flat-square)](docs/PRIVACY.md)
 [![Engine Integrity: 100% Pass](https://img.shields.io/badge/Engine%20Tests-25%2F25%20Pass-brightgreen.svg?style=flat-square)](scripts/test-features.js)
-[![Smoke Tests: 168 Endpoints](https://img.shields.io/badge/Smoke%20Tests-168%2F168%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
+[![Smoke Tests: 176 Endpoints](https://img.shields.io/badge/Smoke%20Tests-176%2F176%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
-[**Windows 1-Click Install**](INSTALLATION.md#method-1-windows-one-click-native-installer) • [**Release Notes v1.2.0**](RELEASE_NOTES_v1.2.0.md) • [**Feature Matrix (126 Tools)**](ERGONPDF_FEATURE_MATRIX.md) • [**Performance Baseline**](ERGONPDF_PERFORMANCE_BASELINE.md) • [**Architecture ADRs**](docs/adr/README.md) • [**Privacy Manifesto**](docs/PRIVACY.md) • [**FAQ**](docs/FAQ.md) • [**API Reference**](docs/API_REFERENCE.md) • [**Beta Checklist**](BETA_RELEASE_CHECKLIST.md) • [**Release Audit**](PHASE_7_FINAL_RELEASE_AUDIT.md)
+[**Windows 1-Click Install**](INSTALLATION.md#method-1-windows-one-click-native-installer) • [**Release Notes v1.2.0**](RELEASE_NOTES_v1.2.0.md) • [**Feature Matrix (134 Tools)**](ERGONPDF_FEATURE_MATRIX.md) • [**Performance Baseline**](ERGONPDF_PERFORMANCE_BASELINE.md) • [**Architecture ADRs**](docs/adr/README.md) • [**Privacy Manifesto**](docs/PRIVACY.md) • [**FAQ**](docs/FAQ.md) • [**API Reference**](docs/API_REFERENCE.md) • [**Beta Checklist**](BETA_RELEASE_CHECKLIST.md) • [**Release Audit**](PHASE_7_FINAL_RELEASE_AUDIT.md)
 
 </div>
 
@@ -35,7 +35,7 @@
 | **Pricing** | **100% Free & Open Source** | Freemium ($84/yr) | Freemium ($108/yr) | Paid ($239.88/yr) | Free Proprietary | Free (GPLv3) |
 | **Processing Location** | **100% Client-Side** | Cloud Server | Cloud Server | Cloud / Local | Local Desktop | Local Server |
 | **File Upload Required?** | ❌ **Never** | ✅ Yes | ✅ Yes | ⚠️ Cloud features | ❌ No | ⚠️ Upload to Docker |
-| **Total Tool Count** | **126 Tools** | 31 Tools | ~20 Tools | ~30 Tools | 124 Tools | ~45 Tools |
+| **Total Tool Count** | **134 Tools** | 31 Tools | ~20 Tools | ~30 Tools | 124 Tools | ~45 Tools |
 | **Offline Operation** | ✅ **Full Offline** | ❌ No | ❌ No | ⚠️ Paid | ✅ Yes | ⚠️ Needs Docker |
 | **No Account / Login Needed** | ✅ **Yes** | ⚠️ Limited | ⚠️ Limited | ❌ Subscription required | ✅ Yes | ✅ Yes |
 | **Windows 1-Click Installer** | ✅ **Included (.bat)** | ⚠️ Desktop (Paid) | ⚠️ Desktop (Paid) | ✅ Native Win32 | ✅ Windows EXE | ❌ Requires Docker |
@@ -50,7 +50,7 @@
 
 - [Overview](#overview)
 - [Privacy Guarantee](#privacy-guarantee)
-- [Feature Directory (126 Tools)](#feature-directory)
+- [Feature Directory (134 Tools)](#feature-directory)
 - [Windows Desktop App Installation](#windows-desktop-app-installation-one-click)
 - [Quickstart & Local Development](#quickstart)
 - [Architecture](#architecture)
@@ -86,9 +86,9 @@ ErgonPDF guarantees complete data sovereignty:
 
 ---
 
-## Feature Directory (126 Tools)
+## Feature Directory (134 Tools)
 
-ErgonPDF organizes 126 precision utilities across nine operational categories, achieving 100% feature parity with PDF24's public suite plus local AI and duplex scanning extensions:
+ErgonPDF organizes 134 precision utilities across nine operational categories, achieving 100% feature parity with PDF24's 124-tool suite and iLovePDF's flagship tools, plus local AI and duplex scanning extensions:
 
 | Workflow Category | Count | Key Included Utilities | Processing Engine & Execution Mode |
 | :--- | :---: | :--- | :--- |
@@ -362,10 +362,10 @@ ErgonPDF provides an exhaustive documentation suite modeled after the highest pr
 ### 📊 Feature Matrices, Audits & Benchmarks
 - 📑 **[System Architecture & Security Audit](ERGONPDF_AUDIT.md)** — Root system audit report modeled after CodexOS standards.
 - 🗺️ **[Implementation & Expansion Roadmap](ERGONPDF_IMPLEMENTATION_PLAN.md)** — Post-v1.2.0 milestone plan for multilingual OCR and form scripting.
-- 📋 **[126-Tool Comprehensive Feature Matrix](ERGONPDF_FEATURE_MATRIX.md)** — Complete audit of all 126 tools with execution engine, client-side status, and test coverage tags.
+- 📋 **[134-Tool Comprehensive Feature Matrix](ERGONPDF_FEATURE_MATRIX.md)** — Complete audit of all 134 tools with execution engine, client-side status, and test coverage tags.
 - ⚡ **[Performance Baseline & Benchmark Report](ERGONPDF_PERFORMANCE_BASELINE.md)** — Empirical measurements of cold startup latency, memory footprints (10 to 500 pages), and sub-100ms operation throughput.
 - 🔍 **[Comparison & Benchmark Guide](docs/COMPARISON.md)** — Detailed feature, cost, and architectural comparison against Adobe Acrobat Pro, ILovePDF, SmallPDF, PDF24, and Stirling-PDF.
-- 🛠️ **[Tools Reference Manual](docs/TOOLS_REFERENCE.md)** — Complete operational specifications for all 126 built-in tools across 9 categories.
+- 🛠️ **[Tools Reference Manual](docs/TOOLS_REFERENCE.md)** — Complete operational specifications for all 134 built-in tools across 9 categories.
 
 ### 💻 Installation & Operational Lifecycle
 - 🚀 **[Installation & Deployment Guide](INSTALLATION.md)** — Multi-modal deployment guide: 1-click Windows native script, WinGet, Scoop, Homebrew, Docker container, and air-gapped SCIF environments.
@@ -382,7 +382,7 @@ ErgonPDF provides an exhaustive documentation suite modeled after the highest pr
 - 🔨 **[Building from Source](docs/building-from-source.md)** — Detailed bundler specifications, manual chunking boundaries, and static worker assets.
 - 📚 **[Programmatic API Reference](docs/API_REFERENCE.md)** — Type-safe contracts and method signatures for `PDFEngineService`, `AIService`, and `OCRService`.
 - 🚢 **[Release Process & Engineering Runbook](RELEASE_PROCESS.md)** — Step-by-step release engineer runbook for version synchronization, 4-gate verification, and SHA-256 manifest generation.
-- 🧪 **[Testing Strategy & Quality Gates](docs/testing.md)** — Comprehensive 4-Tier test methodology covering static linting, 25 engine integrity tests, and 168 smoke-test endpoints.
+- 🧪 **[Testing Strategy & Quality Gates](docs/testing.md)** — Comprehensive 4-Tier test methodology covering static linting, 25 engine integrity tests, and 176 smoke-test endpoints.
 - 🤖 **[AI Agent Guidelines](AGENTS.md)** — Architectural invariants and quality gates for automated coding agents.
 
 ### 🚀 Phase Reports & Release Collateral (VoiceBox Standard)
@@ -414,7 +414,7 @@ npm run build
 # 3. PDF Engine Feature Integrity Suite (25 end-to-end engine tests)
 npm run test-features
 
-# 4. HTTP Application Smoke Test Suite (168 endpoint & route assertions)
+# 4. HTTP Application Smoke Test Suite (176 endpoint & route assertions)
 npm run smoke-test
 ```
 

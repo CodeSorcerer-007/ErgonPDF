@@ -15,7 +15,10 @@ import {
   ChevronRight,
   Maximize2,
   Minimize2,
-  FileText
+  FileText,
+  Zap,
+  PenTool,
+  Lock
 } from 'lucide-react';
 import { TOOLS_REGISTRY, CATEGORY_LABELS } from '../config/toolsRegistry';
 import type { 
@@ -75,6 +78,8 @@ import {
   AnnotateTool,
   ViewPdfTool,
   AiChatTool,
+  TranslatePdfTool,
+  PdfSummarizeTool,
 } from './workspace';
 import {
   computePageClickSelection,
@@ -90,6 +95,12 @@ interface UniversalWorkspaceProps {
   onCloseWorkspace: () => void;
   onSaveRecent: (name: string, action: string, size: number) => void;
 }
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   document: initialDoc,
@@ -709,14 +720,14 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       }
 
       // 4. Watermark if configured
-      if (currentToolTab === 'watermark-pdf' && watermarkSettings.text) {
+      if ((currentToolTab === 'watermark-pdf' || currentToolTab === 'add-watermark') && watermarkSettings.text) {
         setProcessingStatus('Applying watermark…');
         modifiedBytes = await PDFEngineService.addWatermark(currentBuffer, watermarkSettings);
         currentBuffer = modifiedBytes.buffer as ArrayBuffer;
       }
 
       // 5. Page numbers if configured
-      if (currentToolTab === 'page-numbers') {
+      if (currentToolTab === 'page-numbers' || currentToolTab === 'add-page-numbers') {
         setProcessingStatus('Stamping page numbers…');
         modifiedBytes = await PDFEngineService.addPageNumbers(currentBuffer, pageNumberSettings);
         currentBuffer = modifiedBytes.buffer as ArrayBuffer;
@@ -724,7 +735,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
 
       // 6. Compression or Special PDF24 Transformations
       let finalBytes = modifiedBytes;
-      if (currentToolTab === 'compress-pdf') {
+      if (currentToolTab === 'compress-pdf' || currentToolTab === 'convert-pdf-to-grayscale' || currentToolTab === 'invert-pdf') {
         setProcessingStatus('Running adaptive compression engine…');
         const comp = await PDFEngineService.compressDocument(currentBuffer, {
           level: compressionPreset,
@@ -738,38 +749,38 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           original: docState.size,
           newSize: comp.compressedSize,
         });
-      } else if (currentToolTab === 'halve-pdf') {
+      } else if (currentToolTab === 'halve-pdf' || currentToolTab === 'halve-pdf-pages') {
         setProcessingStatus('Splitting 2-in-1 spreads in half…');
         finalBytes = await PDFEngineService.halvePages(currentBuffer);
-      } else if (currentToolTab === 'pages-per-sheet') {
+      } else if (currentToolTab === 'pages-per-sheet' || currentToolTab === 'print-pdf-as-poster') {
         setProcessingStatus(`Imposing ${nUpSettings.pagesPerSheet} pages per sheet…`);
         finalBytes = await PDFEngineService.nUpImposition(currentBuffer, nUpSettings);
-      } else if (currentToolTab === 'booklet-pdf') {
+      } else if (currentToolTab === 'booklet-pdf' || currentToolTab === 'create-pdf-booklet') {
         setProcessingStatus('Generating saddle-stitch booklet imposition…');
         finalBytes = await PDFEngineService.createBooklet(currentBuffer);
       } else if (currentToolTab === 'crop-pdf') {
         setProcessingStatus('Applying crop bounds…');
         finalBytes = await PDFEngineService.cropDocument(currentBuffer, cropSettings);
-      } else if (currentToolTab === 'resize-pdf') {
+      } else if (currentToolTab === 'resize-pdf' || currentToolTab === 'change-pdf-page-size') {
         setProcessingStatus(`Resizing pages to ${resizeSettings.targetSize}…`);
         finalBytes = await PDFEngineService.resizeDocument(currentBuffer, resizeSettings);
       } else if (currentToolTab === 'remove-blank-pages') {
         setProcessingStatus('Scanning and pruning blank pages…');
         const res = await PDFEngineService.removeBlankPages(currentBuffer);
         finalBytes = res.data;
-      } else if (currentToolTab === 'flatten-pdf') {
+      } else if (currentToolTab === 'flatten-pdf' || currentToolTab === 'rasterize-pdf') {
         setProcessingStatus('Rasterizing and flattening all PDF layers…');
         finalBytes = await PDFEngineService.flattenAndRasterize(currentBuffer, flattenDpi);
       } else if (currentToolTab === 'repair-pdf') {
         setProcessingStatus('Reconstructing XREF tables and streams…');
         finalBytes = await PDFEngineService.repairDocument(currentBuffer);
-      } else if (currentToolTab === 'web-optimize') {
+      } else if (currentToolTab === 'web-optimize' || currentToolTab === 'web-optimize-pdf') {
         setProcessingStatus('Linearizing streams for fast web view…');
         finalBytes = await PDFEngineService.webOptimize(currentBuffer);
-      } else if (currentToolTab === 'qr-code-pdf') {
+      } else if (currentToolTab === 'qr-code-pdf' || currentToolTab === 'generate-qr-code') {
         setProcessingStatus('Stamping dynamic QR code onto active page…');
         finalBytes = await PDFEngineService.stampQRCode(currentBuffer, currentPageNum, qrSettings.text, qrSettings);
-      } else if (currentToolTab === 'pdf-to-pdfa') {
+      } else if (currentToolTab === 'pdf-to-pdfa' || currentToolTab === 'validate-pdfa') {
         setProcessingStatus('Applying ISO PDF/A-1b archival profile…');
         finalBytes = await PDFEngineService.convertToPdfA(currentBuffer);
       } else if (currentToolTab === 'alternate-mix' && alternateMixFile) {
@@ -780,10 +791,10 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         setProcessingStatus('Merging letterhead template…');
         const bufT = await overlayFile.arrayBuffer();
         finalBytes = await PDFEngineService.overlayDocument(currentBuffer, bufT, overlayIsUnderlay);
-      } else if (currentToolTab === 'protect-pdf' && protectPassword) {
+      } else if ((currentToolTab === 'protect-pdf' || currentToolTab === 'lock-pdf') && protectPassword) {
         setProcessingStatus('Encrypting document with AES-256…');
         finalBytes = await PDFEngineService.encryptDocument(currentBuffer, protectPassword);
-      } else if (currentToolTab === 'metadata-scrubber') {
+      } else if (currentToolTab === 'metadata-scrubber' || currentToolTab === 'remove-pdf-metadata' || currentToolTab === 'change-pdf-doc-info') {
         setProcessingStatus('Updating and sanitizing document metadata…');
         finalBytes = await PDFEngineService.updateMetadata(currentBuffer, metadataFields);
       } else if (currentToolTab === 'unlock-pdf') {
@@ -807,6 +818,27 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       setCompletedBlobUrl(url);
 
       onSaveRecent(safeDownloadName, currentToolTab, finalBytes.byteLength);
+
+      // Update docState with compiled document so canvas and workspace reflect new content
+      try {
+        const inspected = await PDFEngineService.inspectDocument(finalBytes.buffer as ArrayBuffer);
+        setDocState({
+          id: docState.id,
+          name: safeDownloadName,
+          size: finalBytes.byteLength,
+          arrayBuffer: finalBytes.buffer as ArrayBuffer,
+          pageCount: inspected.pageCount,
+          pages: inspected.pages,
+          metadata: inspected.metadata || docState.metadata,
+        });
+        setPlacedSignatures([]);
+        setRedactions([]);
+        if (currentPageNum > inspected.pageCount) {
+          setCurrentPageNum(1);
+        }
+      } catch (inspectErr) {
+        console.warn('Could not re-inspect document post-compilation:', inspectErr);
+      }
 
       confetti({
         particleCount: 60,
@@ -836,28 +868,33 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       <div style={{
         background: 'var(--bg-card)',
         borderBottom: '1px solid var(--border-subtle)',
-        padding: '10px 20px',
+        padding: '8px 20px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: '16px',
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+        flexWrap: 'nowrap',
         zIndex: 20,
       }}>
         {/* Left: Back & Document Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flexShrink: 1 }}>
           <button 
             onClick={onCloseWorkspace}
             className="btn btn-secondary btn-sm"
             title="Return to Home"
+            style={{ flexShrink: 0 }}
           >
             <ArrowLeft size={14} strokeWidth={1.75} />
             <span>Home</span>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, overflow: 'hidden' }}>
             <span style={{
               fontWeight: 600,
               fontSize: '14px',
-              maxWidth: '240px',
+              maxWidth: '220px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -866,17 +903,17 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             }}>
               {docState.name}
             </span>
-            <span className="badge badge-muted" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+            <span className="badge badge-muted" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
               {(docState.size / (1024 * 1024)).toFixed(1)} MB
             </span>
-            <span className="badge badge-privacy" style={{ fontSize: '11px' }}>
+            <span className="badge badge-privacy" style={{ fontSize: '11px', flexShrink: 0 }}>
               100% Local
             </span>
           </div>
         </div>
 
         {/* Center: Zoom, Page Navigation, Undo/Redo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {/* Undo / Redo */}
           <button
             onClick={handleUndo}
@@ -1027,7 +1064,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         </div>
 
         {/* Right: AI Studio & Export Trigger */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
             onClick={() => setIsAiModalOpen(true)}
             className="btn btn-secondary btn-sm"
@@ -1422,6 +1459,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <RotateTool
                 pages={docState.pages}
                 onUpdatePages={(newPages) => pushHistory(newPages)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1429,6 +1468,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <RemovePagesTool
                 pages={docState.pages}
                 onUpdatePages={(newPages) => pushHistory(newPages)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1458,6 +1499,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <SignTool
                 placedSignatures={placedSignatures}
                 onOpenSignatureModal={() => setIsSigModalOpen(true)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1465,6 +1508,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <RedactTool
                 redactions={redactions}
                 onAddRedactionBox={handleAddRedactionBox}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1513,7 +1558,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {(currentToolTab === 'create-form' || currentToolTab === 'create-fillable-pdf-form' || currentToolTab === 'make-pdf-fillable') && (
+            {(currentToolTab === 'create-form' || currentToolTab === 'create-fillable-pdf-form' || currentToolTab === 'make-pdf-fillable' || currentToolTab === 'pdf-forms') && (
               <CreateFormTool
                 docState={docState}
                 currentPageNum={currentPageNum}
@@ -1523,6 +1568,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                 isProcessing={isProcessing}
                 setIsProcessing={setIsProcessing}
                 setProcessingStatus={setProcessingStatus}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1620,11 +1666,27 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {(currentToolTab === 'view-pdf' || currentToolTab === 'pdf-reader' || currentToolTab === 'print-pdf') && (
+            {(currentToolTab === 'view-pdf' || currentToolTab === 'pdf-reader' || currentToolTab === 'print-pdf' || currentToolTab === 'html-to-pdf') && (
               <ViewPdfTool
                 docState={docState}
                 zoomScale={zoomScale}
                 onZoomChange={(z) => setZoomScale(z)}
+                onProcess={handleExportPDF}
+              />
+            )}
+
+            {currentToolTab === 'translate-pdf' && (
+              <TranslatePdfTool
+                docState={docState}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
+              />
+            )}
+
+            {currentToolTab === 'pdf-summarize' && (
+              <PdfSummarizeTool
+                docState={docState}
+                fullDocumentText={fullDocumentText}
               />
             )}
 
@@ -1652,6 +1714,8 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <MetadataTool
                 metadataFields={metadataFields}
                 onMetadataFieldsChange={(fields) => setMetadataFields(fields)}
+                isProcessing={isProcessing}
+                onProcess={handleExportPDF}
               />
             )}
 
@@ -1739,7 +1803,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {(currentToolTab === 'organize' || currentToolTab === 'reorder-pages' || currentToolTab === 'rearrange-pdf-pages' || currentToolTab === 'straighten-pdf' || !currentToolTab) && (
+            {(currentToolTab === 'organize' || currentToolTab === 'organize-pdf' || currentToolTab === 'reorder-pages' || currentToolTab === 'rearrange-pdf-pages' || currentToolTab === 'straighten-pdf' || !currentToolTab) && (
               <OrganizeTool
                 isProcessing={isProcessing}
                 onProcess={handleExportPDF}
@@ -1867,7 +1931,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         )}
       </div>
 
-      {/* 3. Bottom Action Bar & Result Download Prompt */}
+      {/* 3. Bottom Action Bar & Result Download Prompt with Tool Chaining */}
       {completedBlobUrl && completedStats && (
         <div className="glass-panel animate-slide-up" style={{
           position: 'sticky',
@@ -1876,44 +1940,121 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           borderLeft: 'none',
           borderRight: 'none',
           borderBottom: 'none',
-          padding: '16px 24px',
+          padding: '14px 24px',
           background: 'var(--bg-glass-heavy)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
           zIndex: 30,
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.06)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
               background: 'var(--success-bg)',
               color: 'var(--success)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}>
-              <Check size={22} />
+              <Check size={20} strokeWidth={2.5} />
             </div>
             <div>
-              <h4 style={{ fontSize: '15px', fontWeight: 700 }}>
-                Document Ready for Download!
-              </h4>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                {(completedStats.original / (1024 * 1024)).toFixed(1)} MB →{' '}
-                {(completedStats.newSize / (1024 * 1024)).toFixed(1)} MB (
-                {Math.round((1 - completedStats.newSize / completedStats.original) * 100)}% smaller)
-              </p>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {completedStats.newSize < completedStats.original ? (
+                  <>
+                    <span>Reduced by {Math.round((1 - completedStats.newSize / completedStats.original) * 100)}%</span>
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                      ({formatFileSize(completedStats.original)} → {formatFileSize(completedStats.newSize)})
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span>Document compiled successfully</span>
+                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+                      ({formatFileSize(completedStats.newSize)})
+                    </span>
+                  </>
+                )}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="badge badge-privacy" style={{ fontSize: '9.5px', padding: '1px 5px' }}>
+                  100% In-Browser Memory
+                </span>
+                <span>•</span>
+                <span>0 bytes uploaded</span>
+              </div>
             </div>
           </div>
 
+          {/* Quick Tool Chaining Shortcuts */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              Chain Next:
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setCompletedBlobUrl(null);
+                setCurrentToolTab('compress-pdf');
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '11.5px', padding: '4px 10px' }}
+            >
+              <Zap size={12} color="var(--accent-primary)" />
+              <span>Compress</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCompletedBlobUrl(null);
+                setCurrentToolTab('sign-pdf');
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '11.5px', padding: '4px 10px' }}
+            >
+              <PenTool size={12} color="var(--accent-primary)" />
+              <span>Fill & Sign</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCompletedBlobUrl(null);
+                setCurrentToolTab('protect-pdf');
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '11.5px', padding: '4px 10px' }}
+            >
+              <Lock size={12} color="var(--accent-primary)" />
+              <span>Protect</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCompletedBlobUrl(null);
+                setCurrentToolTab('pdf-to-word');
+              }}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '11.5px', padding: '4px 10px' }}
+            >
+              <FileText size={12} color="var(--accent-primary)" />
+              <span>To Word</span>
+            </button>
+          </div>
+
+          {/* Actions: Keep Editing & Download */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
+              type="button"
               onClick={() => setCompletedBlobUrl(null)}
               className="btn btn-ghost btn-sm"
             >
-              Continue Editing
+              Dismiss
             </button>
             <a
               href={completedBlobUrl}
@@ -1923,7 +2064,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                   : `ergon_${docState.name}.pdf`
               }
               className="btn btn-primary btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, padding: '7px 16px' }}
             >
               <Download size={15} />
               <span>Download PDF</span>

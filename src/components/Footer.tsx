@@ -47,8 +47,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
               justifyContent: 'center',
               color: '#ffffff',
               fontWeight: 700,
-              fontSize: '16px',
-              fontFamily: 'var(--font-serif)',
+              fontSize: '15px',
+              fontFamily: 'var(--font-heading)',
               letterSpacing: '-0.02em',
               boxShadow: 'var(--shadow-xs)',
               flexShrink: 0,
@@ -57,9 +57,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenDocs, onOpenSettings }) =>
             </div>
             <div>
               <span style={{ 
-                fontFamily: 'var(--font-serif)',
-                fontWeight: 600, 
-                fontSize: '18px', 
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 700, 
+                fontSize: '17px', 
                 letterSpacing: '-0.02em',
                 color: 'var(--text-primary)',
               }}>

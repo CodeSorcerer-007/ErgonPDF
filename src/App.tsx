@@ -15,6 +15,9 @@ import { CameraScanModal } from './components/CameraScanModal';
 import { WebpageToPdfModal } from './components/WebpageToPdfModal';
 import { PasswordGenModal } from './components/PasswordGenModal';
 import { AlternateMixModal } from './components/AlternateMixModal';
+import { InvoiceBuilderModal } from './components/InvoiceBuilderModal';
+import { JobApplicationModal } from './components/JobApplicationModal';
+import { CardCollageModal } from './components/CardCollageModal';
 import { Footer } from './components/Footer';
 
 import type { PDFDocumentState, RecentFile } from './types/pdf';
@@ -55,6 +58,10 @@ export function App() {
   const [isPasswordGenModalOpen, setIsPasswordGenModalOpen] = useState(false);
   const [isAlternateMixModalOpen, setIsAlternateMixModalOpen] = useState(false);
   const [isCreatePdfOpen, setIsCreatePdfOpen] = useState(false);
+  const [isInvoiceBuilderOpen, setIsInvoiceBuilderOpen] = useState(false);
+  const [isJobApplicationOpen, setIsJobApplicationOpen] = useState(false);
+  const [isCardCollageOpen, setIsCardCollageOpen] = useState(false);
+  const [cardCollageInitialMode, setCardCollageInitialMode] = useState<'card' | 'collage'>('card');
   const [mergeInitialFiles, setMergeInitialFiles] = useState<File[]>([]);
 
   // Apply Theme attribute to documentElement with system preference detection
@@ -75,10 +82,12 @@ export function App() {
     }
   }, [theme]);
 
-  // Global Keyboard Shortcut for Command Palette
+  // Global Keyboard Shortcut for Command Palette (Ctrl+K or /)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') || (e.key === '/' && !isInput)) {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
       }
@@ -100,7 +109,7 @@ export function App() {
   };
 
   // Process Files Uploaded via Hero Dropzone
-  const handleFilesSelected = async (files: File[]) => {
+  const handleFilesSelected = async (files: File[], targetToolId: string = 'organize') => {
     if (files.length === 0) return;
 
     setIsIngesting(true);
@@ -134,7 +143,7 @@ export function App() {
           pageCount: inspected.pageCount,
           pages: inspected.pages,
         });
-        setActiveToolId('organize');
+        setActiveToolId(targetToolId);
         return;
       }
 
@@ -151,12 +160,30 @@ export function App() {
         pages: inspected.pages,
         metadata: inspected.metadata,
       });
-      setActiveToolId('organize');
+      setActiveToolId(targetToolId);
     } catch (err) {
       console.error(err);
       alert('Unable to read this PDF file. It may be corrupted or password-protected.');
     } finally {
       setIsIngesting(false);
+    }
+  };
+
+  const handleOpenGeneratedPdf = async (pdfBuffer: ArrayBuffer, fileName: string) => {
+    try {
+      const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+      setActiveDocument({
+        id: generateDocId(),
+        name: fileName,
+        size: pdfBuffer.byteLength,
+        arrayBuffer: pdfBuffer,
+        pageCount: inspected.pageCount,
+        pages: inspected.pages,
+        metadata: { title: fileName },
+      });
+      setActiveToolId('organize');
+    } catch (err) {
+      console.error('Failed to open generated PDF in workspace:', err);
     }
   };
 
@@ -192,17 +219,13 @@ export function App() {
       setIsBatchModalOpen(true);
     } else if (toolId === 'camera-scan' || toolId === 'scan-pdf') {
       setIsCameraModalOpen(true);
-    } else if (toolId === 'webpage-to-pdf') {
+    } else if (toolId === 'webpage-to-pdf' || toolId === 'html-to-pdf') {
       setIsWebpageModalOpen(true);
     } else if (toolId === 'password-generator' || toolId === 'generate-password') {
       setIsPasswordGenModalOpen(true);
     } else if (toolId === 'alternate-mix') {
       setIsAlternateMixModalOpen(true);
     } else if (
-      toolId === 'create-pdf' ||
-      toolId === 'create-card' ||
-      toolId === 'create-photo-collage' ||
-      toolId === 'create-job-application' ||
       toolId === 'create-invoice' ||
       toolId === 'create-invoice-visually' ||
       toolId === 'create-electronic-invoice' ||
@@ -210,11 +233,74 @@ export function App() {
       toolId === 'xml-invoice-to-pdf' ||
       toolId === 'validate-e-invoice'
     ) {
+      setIsInvoiceBuilderOpen(true);
+    } else if (toolId === 'create-job-application') {
+      setIsJobApplicationOpen(true);
+    } else if (toolId === 'create-card') {
+      setCardCollageInitialMode('card');
+      setIsCardCollageOpen(true);
+    } else if (toolId === 'create-photo-collage') {
+      setCardCollageInitialMode('collage');
+      setIsCardCollageOpen(true);
+    } else if (toolId === 'create-pdf') {
       setIsCreatePdfOpen(true);
     } else if (toolId === 'pdf-printer') {
       window.print();
     } else if (toolId === 'creator') {
       alert('ErgonPDF Desktop is 100% offline and installable! Check installer/ or add to desktop via PWA.');
+    } else if (
+      toolId === 'heic-to-jpg' ||
+      toolId === 'heic-to-png' ||
+      toolId === 'webp-to-jpg' ||
+      toolId === 'webp-to-png' ||
+      toolId === 'svg-to-jpg' ||
+      toolId === 'svg-to-png' ||
+      toolId === 'compress-images'
+    ) {
+      const isTargetPng = toolId.endsWith('-png');
+      const targetMime = isTargetPng ? 'image/png' : 'image/jpeg';
+      const targetExt = isTargetPng ? '.png' : '.jpg';
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.multiple = true;
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          for (const file of Array.from(files)) {
+            const img = new window.Image();
+            const url = URL.createObjectURL(file);
+            await new Promise((res, rej) => {
+              img.onload = res;
+              img.onerror = rej;
+              img.src = url;
+            });
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              if (!isTargetPng) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+              }
+              ctx.drawImage(img, 0, 0);
+              canvas.toBlob((blob) => {
+                if (blob) {
+                  const dlUrl = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = dlUrl;
+                  a.download = `${file.name.replace(/\.[^/.]+$/, '')}_converted${targetExt}`;
+                  a.click();
+                  URL.revokeObjectURL(dlUrl);
+                }
+              }, targetMime, 0.92);
+            }
+            URL.revokeObjectURL(url);
+          }
+        }
+      };
+      input.click();
     } else if (
       toolId === 'images-to-pdf' ||
       toolId === 'jpg-to-pdf' ||
@@ -222,14 +308,7 @@ export function App() {
       toolId === 'webp-to-pdf' ||
       toolId === 'heic-to-pdf' ||
       toolId === 'svg-to-pdf' ||
-      toolId === 'tiff-to-pdf' ||
-      toolId === 'compress-images' ||
-      toolId === 'heic-to-jpg' ||
-      toolId === 'heic-to-png' ||
-      toolId === 'webp-to-jpg' ||
-      toolId === 'webp-to-png' ||
-      toolId === 'svg-to-jpg' ||
-      toolId === 'svg-to-png'
+      toolId === 'tiff-to-pdf'
     ) {
       const input = document.createElement('input');
       input.type = 'file';
@@ -322,8 +401,7 @@ export function App() {
         input.onchange = async (e) => {
           const files = (e.target as HTMLInputElement).files;
           if (files && files.length > 0) {
-            await handleFilesSelected(Array.from(files));
-            setActiveToolId('view-pdf');
+            await handleFilesSelected(Array.from(files), 'view-pdf');
           }
         };
         input.click();
@@ -338,8 +416,7 @@ export function App() {
         input.onchange = async (e) => {
           const files = (e.target as HTMLInputElement).files;
           if (files && files.length > 0) {
-            await handleFilesSelected(Array.from(files));
-            setActiveToolId(toolId);
+            await handleFilesSelected(Array.from(files), toolId);
           }
         };
         input.click();
@@ -588,6 +665,28 @@ export function App() {
           </div>
         </div>
       )}
+
+      {/* Interactive Invoice Builder Modal */}
+      <InvoiceBuilderModal
+        isOpen={isInvoiceBuilderOpen}
+        onClose={() => setIsInvoiceBuilderOpen(false)}
+        onOpenPdfInWorkspace={handleOpenGeneratedPdf}
+      />
+
+      {/* Job Application & Cover Letter Builder Modal */}
+      <JobApplicationModal
+        isOpen={isJobApplicationOpen}
+        onClose={() => setIsJobApplicationOpen(false)}
+        onOpenPdfInWorkspace={handleOpenGeneratedPdf}
+      />
+
+      {/* Card & Photo Collage Builder Modal */}
+      <CardCollageModal
+        isOpen={isCardCollageOpen}
+        initialMode={cardCollageInitialMode}
+        onClose={() => setIsCardCollageOpen(false)}
+        onOpenPdfInWorkspace={handleOpenGeneratedPdf}
+      />
     </div>
   );
 }

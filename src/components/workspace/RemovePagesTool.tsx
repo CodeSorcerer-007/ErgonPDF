@@ -1,12 +1,22 @@
 import React from 'react';
+import { Download } from 'lucide-react';
 import type { PDFPageInfo } from '../../types/pdf';
 
 export interface RemovePagesToolProps {
   pages: PDFPageInfo[];
   onUpdatePages: (newPages: PDFPageInfo[]) => void;
+  isProcessing?: boolean;
+  onProcess?: () => void;
 }
 
-export const RemovePagesTool: React.FC<RemovePagesToolProps> = ({ pages, onUpdatePages }) => {
+export const RemovePagesTool: React.FC<RemovePagesToolProps> = ({
+  pages,
+  onUpdatePages,
+  isProcessing = false,
+  onProcess,
+}) => {
+  const deletedCount = pages.filter((p) => p.deleted).length;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div>
@@ -67,6 +77,23 @@ export const RemovePagesTool: React.FC<RemovePagesToolProps> = ({ pages, onUpdat
           <span>Restore All Deleted Pages</span>
         </button>
       </div>
+
+      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        Marked for deletion: {deletedCount} of {pages.length} pages
+      </span>
+
+      {onProcess && (
+        <button
+          type="button"
+          onClick={onProcess}
+          disabled={isProcessing}
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+        >
+          <Download size={14} />
+          <span>Apply Deletions & Export PDF</span>
+        </button>
+      )}
     </div>
   );
 };

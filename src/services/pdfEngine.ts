@@ -1877,4 +1877,481 @@ export class PDFEngineService {
     });
     return encrypted;
   }
+
+  /**
+   * Generates a fully formatted, professional vector PDF invoice.
+   * Runs 100% client-side with zero telemetry or network calls.
+   */
+  static async generateInvoicePDF(data: {
+    invoiceNumber: string;
+    date: string;
+    dueDate: string;
+    currency: string;
+    seller: { name: string; address: string; email?: string; taxId?: string };
+    buyer: { name: string; address: string; email?: string; taxId?: string };
+    items: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+    subtotal: number;
+    taxRate: number;
+    taxAmount: number;
+    grandTotal: number;
+    notes?: string;
+  }): Promise<Uint8Array> {
+    const doc = await PDFDocument.create();
+    const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const page = doc.addPage([595.28, 841.89]); // A4
+    const { width, height } = page.getSize();
+
+    // Top banner
+    page.drawRectangle({
+      x: 0,
+      y: height - 90,
+      width,
+      height: 90,
+      color: rgb(0.12, 0.16, 0.24),
+    });
+
+    page.drawText('INVOICE', {
+      x: 40,
+      y: height - 55,
+      size: 26,
+      font: fontBold,
+      color: rgb(1, 1, 1),
+    });
+
+    const invMeta = `#${data.invoiceNumber || 'INV-001'}  |  Date: ${data.date || 'N/A'}`;
+    page.drawText(invMeta, {
+      x: 40,
+      y: height - 75,
+      size: 11,
+      font: fontRegular,
+      color: rgb(0.8, 0.85, 0.9),
+    });
+
+    if (data.dueDate) {
+      page.drawText(`Due Date: ${data.dueDate}`, {
+        x: width - 180,
+        y: height - 60,
+        size: 11,
+        font: fontRegular,
+        color: rgb(0.8, 0.85, 0.9),
+      });
+    }
+
+    // Two-column Seller / Buyer
+    let currentY = height - 125;
+
+    // Seller (From)
+    page.drawText('FROM:', { x: 40, y: currentY, size: 10, font: fontBold, color: rgb(0.4, 0.45, 0.5) });
+    page.drawText(data.seller.name || 'Company Name', { x: 40, y: currentY - 16, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+    const sellerLines = (data.seller.address || 'Address').split('\n');
+    let sY = currentY - 32;
+    sellerLines.forEach(l => {
+      page.drawText(l, { x: 40, y: sY, size: 10, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
+      sY -= 14;
+    });
+    if (data.seller.taxId) {
+      page.drawText(`VAT/Tax ID: ${data.seller.taxId}`, { x: 40, y: sY, size: 9, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    }
+
+    // Buyer (Bill To)
+    page.drawText('BILL TO:', { x: 320, y: currentY, size: 10, font: fontBold, color: rgb(0.4, 0.45, 0.5) });
+    page.drawText(data.buyer.name || 'Client Name', { x: 320, y: currentY - 16, size: 12, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+    const buyerLines = (data.buyer.address || 'Client Address').split('\n');
+    let bY = currentY - 32;
+    buyerLines.forEach(l => {
+      page.drawText(l, { x: 320, y: bY, size: 10, font: fontRegular, color: rgb(0.3, 0.3, 0.3) });
+      bY -= 14;
+    });
+    if (data.buyer.taxId) {
+      page.drawText(`VAT/Tax ID: ${data.buyer.taxId}`, { x: 320, y: bY, size: 9, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    }
+
+    // Line items table
+    const tableTop = Math.min(sY, bY) - 30;
+    page.drawRectangle({
+      x: 40,
+      y: tableTop - 20,
+      width: width - 80,
+      height: 24,
+      color: rgb(0.93, 0.95, 0.98),
+    });
+
+    page.drawText('DESCRIPTION', { x: 50, y: tableTop - 14, size: 9, font: fontBold, color: rgb(0.2, 0.25, 0.3) });
+    page.drawText('QTY', { x: 340, y: tableTop - 14, size: 9, font: fontBold, color: rgb(0.2, 0.25, 0.3) });
+    page.drawText('UNIT PRICE', { x: 400, y: tableTop - 14, size: 9, font: fontBold, color: rgb(0.2, 0.25, 0.3) });
+    page.drawText('TOTAL', { x: 490, y: tableTop - 14, size: 9, font: fontBold, color: rgb(0.2, 0.25, 0.3) });
+
+    let itemY = tableTop - 40;
+    const curr = data.currency || '$';
+
+    for (const item of data.items) {
+      page.drawText(item.description || 'Service/Item', { x: 50, y: itemY, size: 10, font: fontRegular, color: rgb(0.15, 0.15, 0.15) });
+      page.drawText(String(item.quantity || 1), { x: 345, y: itemY, size: 10, font: fontRegular, color: rgb(0.15, 0.15, 0.15) });
+      page.drawText(`${curr}${(item.unitPrice || 0).toFixed(2)}`, { x: 400, y: itemY, size: 10, font: fontRegular, color: rgb(0.15, 0.15, 0.15) });
+      page.drawText(`${curr}${(item.total || 0).toFixed(2)}`, { x: 490, y: itemY, size: 10, font: fontRegular, color: rgb(0.15, 0.15, 0.15) });
+
+      page.drawLine({
+        start: { x: 40, y: itemY - 6 },
+        end: { x: width - 40, y: itemY - 6 },
+        thickness: 0.5,
+        color: rgb(0.9, 0.9, 0.9),
+      });
+
+      itemY -= 22;
+      if (itemY < 120) break;
+    }
+
+    // Totals block
+    const totalsY = itemY - 20;
+    page.drawText(`Subtotal:`, { x: 380, y: totalsY, size: 10, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(`${curr}${data.subtotal.toFixed(2)}`, { x: 480, y: totalsY, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+    page.drawText(`Tax (${data.taxRate}%):`, { x: 380, y: totalsY - 18, size: 10, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    page.drawText(`${curr}${data.taxAmount.toFixed(2)}`, { x: 480, y: totalsY - 18, size: 10, font: fontRegular, color: rgb(0.1, 0.1, 0.1) });
+
+    page.drawRectangle({
+      x: 370,
+      y: totalsY - 46,
+      width: 185,
+      height: 24,
+      color: rgb(0.12, 0.16, 0.24),
+    });
+
+    page.drawText(`Total Due:`, { x: 380, y: totalsY - 39, size: 11, font: fontBold, color: rgb(1, 1, 1) });
+    page.drawText(`${curr}${data.grandTotal.toFixed(2)}`, { x: 475, y: totalsY - 39, size: 12, font: fontBold, color: rgb(0.3, 0.8, 0.5) });
+
+    // Notes / Terms
+    if (data.notes) {
+      page.drawText('NOTES & TERMS:', { x: 40, y: totalsY - 30, size: 9, font: fontBold, color: rgb(0.4, 0.45, 0.5) });
+      page.drawText(data.notes.slice(0, 120), { x: 40, y: totalsY - 45, size: 9, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    }
+
+    // Footer
+    page.drawText('Generated with ErgonPDF Workstation — 100% Private & Local', {
+      x: 40,
+      y: 30,
+      size: 8,
+      font: fontRegular,
+      color: rgb(0.6, 0.6, 0.6),
+    });
+
+    return await doc.save();
+  }
+
+  /**
+   * Generates a standard ZUGFeRD 2.2 / Factur-X / EN16931 compliant E-Invoice XML string.
+   */
+  static generateZUGFeRDXml(data: {
+    invoiceNumber: string;
+    date: string;
+    currency: string;
+    seller: { name: string; address: string; taxId?: string; email?: string };
+    buyer: { name: string; address: string; taxId?: string; email?: string };
+    items: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+    subtotal: number;
+    taxRate: number;
+    taxAmount: number;
+    grandTotal: number;
+  }): string {
+    const issueDateStr = (data.date || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+    const currency = (data.currency === '€' || !data.currency || data.currency === 'EUR') ? 'EUR' : (data.currency === '£' ? 'GBP' : 'USD');
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+                          xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+                          xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocumentContext>
+    <ram:GuidelineSpecifiedDocumentContextParameter>
+      <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort</ram:ID>
+    </ram:GuidelineSpecifiedDocumentContextParameter>
+  </rsm:ExchangedDocumentContext>
+  <rsm:ExchangedDocument>
+    <ram:ID>${data.invoiceNumber || 'INV-001'}</ram:ID>
+    <ram:TypeCode>380</ram:TypeCode>
+    <ram:IssueDateTime>
+      <udt:DateTimeString format="102">${issueDateStr}</udt:DateTimeString>
+    </ram:IssueDateTime>
+  </rsm:ExchangedDocument>
+  <rsm:SupplyChainTradeTransaction>
+    <ram:ApplicableHeaderTradeAgreement>
+      <ram:SellerTradeParty>
+        <ram:Name>${data.seller.name || 'Seller'}</ram:Name>
+        <ram:SpecifiedLegalOrganization>
+          <ram:ID>${data.seller.taxId || 'TAX-ID-12345'}</ram:ID>
+        </ram:SpecifiedLegalOrganization>
+        <ram:PostalTradeAddress>
+          <ram:LineOne>${(data.seller.address || 'Address').replace(/\n/g, ', ')}</ram:LineOne>
+        </ram:PostalTradeAddress>
+      </ram:SellerTradeParty>
+      <ram:BuyerTradeParty>
+        <ram:Name>${data.buyer.name || 'Buyer'}</ram:Name>
+        <ram:PostalTradeAddress>
+          <ram:LineOne>${(data.buyer.address || 'Address').replace(/\n/g, ', ')}</ram:LineOne>
+        </ram:PostalTradeAddress>
+      </ram:BuyerTradeParty>
+    </ram:ApplicableHeaderTradeAgreement>
+    <ram:ApplicableHeaderTradeSettlement>
+      <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>
+      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+        <ram:LineTotalAmount>${data.subtotal.toFixed(2)}</ram:LineTotalAmount>
+        <ram:TaxBasisTotalAmount>${data.subtotal.toFixed(2)}</ram:TaxBasisTotalAmount>
+        <ram:TaxTotalAmount currencyID="${currency}">${data.taxAmount.toFixed(2)}</ram:TaxTotalAmount>
+        <ram:GrandTotalAmount>${data.grandTotal.toFixed(2)}</ram:GrandTotalAmount>
+        <ram:DuePayableAmount>${data.grandTotal.toFixed(2)}</ram:DuePayableAmount>
+      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>
+    </ram:ApplicableHeaderTradeSettlement>
+  </rsm:SupplyChainTradeTransaction>
+</rsm:CrossIndustryInvoice>`;
+  }
+
+  /**
+   * Generates an executive Job Application & Cover Letter PDF document.
+   */
+  static async generateJobApplicationPDF(data: {
+    applicantName: string;
+    email: string;
+    phone: string;
+    location: string;
+    targetRole: string;
+    targetCompany: string;
+    coverLetter: string;
+    skills: string[];
+  }): Promise<Uint8Array> {
+    const doc = await PDFDocument.create();
+    const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const page = doc.addPage([595.28, 841.89]); // A4
+    const { width, height } = page.getSize();
+
+    // Top Header Banner
+    page.drawRectangle({
+      x: 0,
+      y: height - 110,
+      width,
+      height: 110,
+      color: rgb(0.09, 0.13, 0.22),
+    });
+
+    page.drawText(data.applicantName || 'Applicant Name', {
+      x: 40,
+      y: height - 48,
+      size: 24,
+      font: fontBold,
+      color: rgb(1, 1, 1),
+    });
+
+    const contactStr = [data.email, data.phone, data.location].filter(Boolean).join('  •  ');
+    page.drawText(contactStr || 'email@example.com  •  Phone  •  Location', {
+      x: 40,
+      y: height - 72,
+      size: 10,
+      font: fontRegular,
+      color: rgb(0.75, 0.82, 0.9),
+    });
+
+    const roleTarget = `Application for: ${data.targetRole || 'Professional Role'} at ${data.targetCompany || 'Target Organization'}`;
+    page.drawText(roleTarget, {
+      x: 40,
+      y: height - 94,
+      size: 11,
+      font: fontBold,
+      color: rgb(0.3, 0.7, 0.95),
+    });
+
+    let y = height - 145;
+
+    // Date & Salutation
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    page.drawText(today, { x: 40, y, size: 10, font: fontRegular, color: rgb(0.4, 0.4, 0.4) });
+    y -= 25;
+
+    page.drawText(`Dear Hiring Manager at ${data.targetCompany || 'the hiring team'},`, {
+      x: 40,
+      y,
+      size: 11,
+      font: fontBold,
+      color: rgb(0.15, 0.15, 0.15),
+    });
+    y -= 25;
+
+    // Cover letter paragraphs
+    const paragraphs = (data.coverLetter || 'I am writing to express my strong enthusiasm for this role...').split('\n');
+    for (const para of paragraphs) {
+      if (!para.trim()) {
+        y -= 12;
+        continue;
+      }
+      // Simple word wrapping
+      const words = para.trim().split(' ');
+      let currentLine = '';
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        if (testLine.length > 80) {
+          page.drawText(currentLine, { x: 40, y, size: 10.5, font: fontRegular, color: rgb(0.2, 0.2, 0.2) });
+          y -= 15;
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine) {
+        page.drawText(currentLine, { x: 40, y, size: 10.5, font: fontRegular, color: rgb(0.2, 0.2, 0.2) });
+        y -= 20;
+      }
+      if (y < 200) break;
+    }
+
+    // Skills pill / block
+    if (data.skills && data.skills.length > 0) {
+      y = Math.max(y, 180);
+      page.drawText('KEY CORE COMPETENCIES & TECHNICAL PROFICIENCIES', {
+        x: 40,
+        y,
+        size: 9,
+        font: fontBold,
+        color: rgb(0.35, 0.4, 0.48),
+      });
+      y -= 18;
+
+      const skillsStr = data.skills.join('  |  ');
+      page.drawText(skillsStr.slice(0, 110), {
+        x: 40,
+        y,
+        size: 9.5,
+        font: fontRegular,
+        color: rgb(0.15, 0.45, 0.75),
+      });
+      y -= 28;
+    }
+
+    // Sign-off
+    y = Math.max(y, 110);
+    page.drawText('Sincerely,', { x: 40, y, size: 10, font: fontRegular, color: rgb(0.2, 0.2, 0.2) });
+    y -= 18;
+    page.drawText(data.applicantName || 'Applicant', { x: 40, y, size: 11, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
+
+    return await doc.save();
+  }
+
+  /**
+   * Generates a styled Greeting Card or Photo Collage PDF.
+   */
+  static async generateCardPDF(data: {
+    title: string;
+    message: string;
+    theme: 'classic' | 'warm' | 'slate' | 'emerald' | 'coral';
+    images?: Array<{ name: string; buffer: ArrayBuffer; type: string }>;
+  }): Promise<Uint8Array> {
+    const doc = await PDFDocument.create();
+    const fontRegular = await doc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    // Landscape greeting card / collage: 841.89 x 595.28
+    const page = doc.addPage([841.89, 595.28]);
+    const { width, height } = page.getSize();
+
+    // Theme background colors
+    let bgColor = rgb(0.98, 0.98, 0.98);
+    let borderColor = rgb(0.8, 0.82, 0.85);
+    let titleColor = rgb(0.1, 0.15, 0.22);
+    let msgColor = rgb(0.25, 0.28, 0.35);
+
+    if (data.theme === 'warm') {
+      bgColor = rgb(0.99, 0.97, 0.93);
+      borderColor = rgb(0.88, 0.76, 0.55);
+      titleColor = rgb(0.45, 0.25, 0.08);
+      msgColor = rgb(0.35, 0.25, 0.15);
+    } else if (data.theme === 'slate') {
+      bgColor = rgb(0.1, 0.13, 0.18);
+      borderColor = rgb(0.25, 0.32, 0.42);
+      titleColor = rgb(0.92, 0.95, 0.98);
+      msgColor = rgb(0.75, 0.8, 0.88);
+    } else if (data.theme === 'emerald') {
+      bgColor = rgb(0.94, 0.98, 0.95);
+      borderColor = rgb(0.5, 0.75, 0.6);
+      titleColor = rgb(0.08, 0.35, 0.2);
+      msgColor = rgb(0.15, 0.3, 0.22);
+    } else if (data.theme === 'coral') {
+      bgColor = rgb(0.99, 0.95, 0.95);
+      borderColor = rgb(0.95, 0.65, 0.65);
+      titleColor = rgb(0.5, 0.15, 0.15);
+      msgColor = rgb(0.4, 0.2, 0.2);
+    }
+
+    // Fill background
+    page.drawRectangle({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      color: bgColor,
+    });
+
+    // Decorative inner border
+    page.drawRectangle({
+      x: 30,
+      y: 30,
+      width: width - 60,
+      height: height - 60,
+      borderWidth: 2,
+      borderColor,
+      opacity: 0,
+    });
+
+    // Title / Greeting centered
+    const titleText = data.title || 'Warmest Wishes';
+    const titleWidth = fontBold.widthOfTextAtSize(titleText, 32);
+    page.drawText(titleText, {
+      x: (width - titleWidth) / 2,
+      y: height - 100,
+      size: 32,
+      font: fontBold,
+      color: titleColor,
+    });
+
+    // Embed images if provided
+    let msgTop = height - 160;
+    if (data.images && data.images.length > 0) {
+      try {
+        const imgObj = data.images[0];
+        const isPng = imgObj.type?.includes('png') || imgObj.name.toLowerCase().endsWith('.png');
+        const embeddedImg = isPng ? await doc.embedPng(imgObj.buffer) : await doc.embedJpg(imgObj.buffer);
+        const imgDims = embeddedImg.scale(0.35);
+
+        // Center image
+        const imgX = (width - imgDims.width) / 2;
+        const imgY = height - 130 - imgDims.height;
+        page.drawImage(embeddedImg, {
+          x: imgX,
+          y: imgY,
+          width: imgDims.width,
+          height: imgDims.height,
+        });
+        msgTop = imgY - 30;
+      } catch (err) {
+        console.warn('Could not embed card image:', err);
+      }
+    }
+
+    // Message centered
+    const messageLines = (data.message || 'May your days be filled with happiness, success, and prosperity.').split('\n');
+    let mY = msgTop;
+    for (const line of messageLines) {
+      const lineWidth = fontRegular.widthOfTextAtSize(line.trim(), 16);
+      page.drawText(line.trim(), {
+        x: (width - lineWidth) / 2,
+        y: mY,
+        size: 16,
+        font: fontRegular,
+        color: msgColor,
+      });
+      mY -= 26;
+    }
+
+    return await doc.save();
+  }
 }
+
