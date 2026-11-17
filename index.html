@@ -14,6 +14,18 @@
     
     <!-- Offline-First Bundled Fonts: Instrument Serif, Plus Jakarta Sans, JetBrains Mono -->
     <link rel="stylesheet" href="/fonts/fonts.css" />
+
+    <!-- Zero-Flicker Theme Hydration -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('ergon_theme');
+          var prefDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved === 'light' || saved === 'dark' ? saved : (prefDark ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {}
+      })();
+    </script>
     
     <title>ErgonPDF — The Open-Source, Privacy-First PDF Workspace</title>
   </head>

@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
+
+PackageIdentifier: ErgonPDF.ErgonPDF
+PackageVersion: 1.2.0
+InstallerLocale: en-US
+Platform:
+  - Windows.Desktop
+MinimumOSVersion: 10.0.0.0
+InstallerType: zip
+Scope: user
+InstallModes:
+  - interactive
+  - silent
+UpgradeBehavior: install
+Commands:
+  - ergonpdf
+FileExtensions:
+  - pdf
+ReleaseDate: 2026-11-15
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/CodeSorcerer-007/ErgonPDF/releases/download/v1.2.0/ErgonPDF-v1.2.0-Windows-Setup.zip
+    InstallerSha256: A0E198E4D7078D131CCA6A9F05DE58BB1BE741D21F10CB1A35928C49AEFFB510
+    InstallerLocale: en-US
+    Scope: user
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: installer\ErgonPDF.bat
+        PortableCommandAlias: ergonpdf
+ManifestType: installer
+ManifestVersion: 1.6.0

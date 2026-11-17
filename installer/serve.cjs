@@ -28,18 +28,15 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-// Locate dist folder
-let baseDir = path.resolve(__dirname, 'dist');
-if (!fs.existsSync(baseDir)) {
-  // If serve.js is inside dist or running from project root
-  if (fs.existsSync(path.resolve(process.cwd(), 'dist'))) {
-    baseDir = path.resolve(process.cwd(), 'dist');
-  } else if (fs.existsSync(path.resolve(__dirname, 'index.html'))) {
-    baseDir = __dirname;
-  } else {
-    baseDir = process.cwd();
-  }
-}
+// Locate dist folder containing index.html
+const candidateDirs = [
+  path.resolve(__dirname, 'dist'),
+  path.resolve(__dirname, '..', 'dist'),
+  path.resolve(process.cwd(), 'dist'),
+  path.resolve(__dirname),
+  process.cwd()
+];
+const baseDir = candidateDirs.find(d => fs.existsSync(path.join(d, 'index.html'))) || path.resolve(__dirname, 'dist');
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -84,6 +81,15 @@ function openBrowser(url) {
 }
 
 function handleRequest(req, res) {
+  // DNS Rebinding Protection: strictly validate Host header against loopback origins
+  const hostHeader = (req.headers.host || '').split(':')[0].toLowerCase();
+  if (hostHeader && hostHeader !== '127.0.0.1' && hostHeader !== 'localhost') {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.writeHead(403);
+    res.end('403 Forbidden: Invalid Host Header (DNS Rebinding Guard)\n');
+    return;
+  }
+
   const urlObj = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(urlObj.pathname);
 
@@ -192,13 +198,39 @@ function startServer(port, retryCount = 0) {
 
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-      if (retryCount < maxRetries) {
-        const nextPort = port + 1;
-        console.log(`[ErgonPDF] Port ${port} is in use, trying port ${nextPort}...`);
-        startServer(nextPort, retryCount + 1);
-      } else {
-        console.error(`[ErgonPDF] Error: Could not find an open port between ${portArg} and ${port}.`);
-        process.exit(1);
+      // Single-instance check: see if ErgonPDF is already serving on this port
+      const checkReq = http.get(`http://127.0.0.1:${port}/api/health`, (res) => {
+        let body = '';
+        res.on('data', chunk => body += chunk);
+        res.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            if (data.service === 'ErgonPDF') {
+              console.log(`[ErgonPDF] Instance already active at http://127.0.0.1:${port}. Bringing to focus.`);
+              openBrowser(`http://127.0.0.1:${port}`);
+              process.exit(0);
+            }
+          } catch {}
+          retryNextPort();
+        });
+      });
+      checkReq.on('error', () => {
+        retryNextPort();
+      });
+      checkReq.setTimeout(600, () => {
+        checkReq.destroy();
+        retryNextPort();
+      });
+
+      function retryNextPort() {
+        if (retryCount < maxRetries) {
+          const nextPort = port + 1;
+          console.log(`[ErgonPDF] Port ${port} is in use, trying port ${nextPort}...`);
+          startServer(nextPort, retryCount + 1);
+        } else {
+          console.error(`[ErgonPDF] Error: Could not find an open port between ${portArg} and ${port}.`);
+          process.exit(1);
+        }
       }
     } else {
       console.error('[ErgonPDF] Server error:', err);

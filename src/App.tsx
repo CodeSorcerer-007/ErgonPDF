@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { HeroDropzone } from './components/HeroDropzone';
+import { FrequentlyUsedShelf } from './components/FrequentlyUsedShelf';
 import { ToolsGrid } from './components/ToolsGrid';
 import { RecentFilesBar } from './components/RecentFilesBar';
 import { UniversalWorkspace } from './components/UniversalWorkspace';
@@ -22,9 +23,17 @@ import { StorageService } from './services/storageService';
 
 const generateDocId = () => `doc-${Date.now()}`;
 
+const getEffectiveTheme = (t: 'dark' | 'light' | 'system'): 'dark' | 'light' => {
+  if (t === 'system') {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return t;
+};
+
 export function App() {
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(StorageService.getTheme());
+  const [isIngesting, setIsIngesting] = useState(false);
 
   // Workspace Document State
   const [activeDocument, setActiveDocument] = useState<PDFDocumentState | null>(null);
@@ -48,10 +57,22 @@ export function App() {
   const [isCreatePdfOpen, setIsCreatePdfOpen] = useState(false);
   const [mergeInitialFiles, setMergeInitialFiles] = useState<File[]>([]);
 
-  // Apply Theme attribute to documentElement
+  // Apply Theme attribute to documentElement with system preference detection
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme === 'system' ? 'dark' : theme);
+    const updateTheme = () => {
+      const effective = getEffectiveTheme(theme);
+      document.documentElement.setAttribute('data-theme', effective);
+    };
+
+    updateTheme();
     StorageService.setTheme(theme);
+
+    if (theme === 'system' && window.matchMedia) {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => updateTheme();
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
   }, [theme]);
 
   // Global Keyboard Shortcut for Command Palette
@@ -67,7 +88,10 @@ export function App() {
   }, []);
 
   const handleToggleTheme = () => {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => {
+      const effective = getEffectiveTheme(prev);
+      return effective === 'dark' ? 'light' : 'dark';
+    });
   };
 
   const handleToggleFavorite = (toolId: string) => {
@@ -79,41 +103,42 @@ export function App() {
   const handleFilesSelected = async (files: File[]) => {
     if (files.length === 0) return;
 
-    // Multiple PDFs: Open Merge Modal
-    if (files.length > 1 && files.every((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'))) {
-      setMergeInitialFiles(files);
-      setIsMergeModalOpen(true);
-      return;
-    }
-
-    const firstFile = files[0];
-
-    // Images: Convert to PDF automatically
-    if (firstFile.type.startsWith('image/')) {
-      const imageBuffers: { name: string; buffer: ArrayBuffer; type: string }[] = [];
-      for (const imgFile of files) {
-        const buf = await imgFile.arrayBuffer();
-        imageBuffers.push({ name: imgFile.name, buffer: buf, type: imgFile.type });
+    setIsIngesting(true);
+    try {
+      // Multiple PDFs: Open Merge Modal
+      if (files.length > 1 && files.every((f) => f.type === 'application/pdf' || f.name.endsWith('.pdf'))) {
+        setMergeInitialFiles(files);
+        setIsMergeModalOpen(true);
+        return;
       }
 
-      const pdfBytes = await PDFEngineService.imagesToPDF(imageBuffers);
-      const pdfBuffer = pdfBytes.buffer as ArrayBuffer;
-      const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+      const firstFile = files[0];
 
-      setActiveDocument({
-        id: generateDocId(),
-        name: `${firstFile.name.replace(/\.[^/.]+$/, '')}_converted.pdf`,
-        size: pdfBuffer.byteLength,
-        arrayBuffer: pdfBuffer,
-        pageCount: inspected.pageCount,
-        pages: inspected.pages,
-      });
-      setActiveToolId('organize');
-      return;
-    }
+      // Images: Convert to PDF automatically
+      if (firstFile.type.startsWith('image/')) {
+        const imageBuffers: { name: string; buffer: ArrayBuffer; type: string }[] = [];
+        for (const imgFile of files) {
+          const buf = await imgFile.arrayBuffer();
+          imageBuffers.push({ name: imgFile.name, buffer: buf, type: imgFile.type });
+        }
 
-    // Single PDF
-    try {
+        const pdfBytes = await PDFEngineService.imagesToPDF(imageBuffers);
+        const pdfBuffer = pdfBytes.buffer as ArrayBuffer;
+        const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+
+        setActiveDocument({
+          id: generateDocId(),
+          name: `${firstFile.name.replace(/\.[^/.]+$/, '')}_converted.pdf`,
+          size: pdfBuffer.byteLength,
+          arrayBuffer: pdfBuffer,
+          pageCount: inspected.pageCount,
+          pages: inspected.pages,
+        });
+        setActiveToolId('organize');
+        return;
+      }
+
+      // Single PDF
       const buffer = await firstFile.arrayBuffer();
       const inspected = await PDFEngineService.inspectDocument(buffer);
 
@@ -130,6 +155,8 @@ export function App() {
     } catch (err) {
       console.error(err);
       alert('Unable to read this PDF file. It may be corrupted or password-protected.');
+    } finally {
+      setIsIngesting(false);
     }
   };
 
@@ -157,26 +184,56 @@ export function App() {
 
   // Quick Action or Tool Selection
   const handleSelectTool = async (toolId: string) => {
-    if (toolId === 'merge-pdf') {
+    if (toolId === 'merge-pdf' || toolId === 'assemble-pdf') {
       setIsMergeModalOpen(true);
     } else if (toolId === 'compare-pdf') {
       setIsCompareModalOpen(true);
     } else if (toolId === 'batch') {
       setIsBatchModalOpen(true);
-    } else if (toolId === 'camera-scan') {
+    } else if (toolId === 'camera-scan' || toolId === 'scan-pdf') {
       setIsCameraModalOpen(true);
     } else if (toolId === 'webpage-to-pdf') {
       setIsWebpageModalOpen(true);
-    } else if (toolId === 'password-generator') {
+    } else if (toolId === 'password-generator' || toolId === 'generate-password') {
       setIsPasswordGenModalOpen(true);
     } else if (toolId === 'alternate-mix') {
       setIsAlternateMixModalOpen(true);
-    } else if (toolId === 'create-pdf') {
+    } else if (
+      toolId === 'create-pdf' ||
+      toolId === 'create-card' ||
+      toolId === 'create-photo-collage' ||
+      toolId === 'create-job-application' ||
+      toolId === 'create-invoice' ||
+      toolId === 'create-invoice-visually' ||
+      toolId === 'create-electronic-invoice' ||
+      toolId === 'pdf-to-e-invoice' ||
+      toolId === 'xml-invoice-to-pdf' ||
+      toolId === 'validate-e-invoice'
+    ) {
       setIsCreatePdfOpen(true);
-    } else if (toolId === 'images-to-pdf') {
+    } else if (toolId === 'pdf-printer') {
+      window.print();
+    } else if (toolId === 'creator') {
+      alert('ErgonPDF Desktop is 100% offline and installable! Check installer/ or add to desktop via PWA.');
+    } else if (
+      toolId === 'images-to-pdf' ||
+      toolId === 'jpg-to-pdf' ||
+      toolId === 'png-to-pdf' ||
+      toolId === 'webp-to-pdf' ||
+      toolId === 'heic-to-pdf' ||
+      toolId === 'svg-to-pdf' ||
+      toolId === 'tiff-to-pdf' ||
+      toolId === 'compress-images' ||
+      toolId === 'heic-to-jpg' ||
+      toolId === 'heic-to-png' ||
+      toolId === 'webp-to-jpg' ||
+      toolId === 'webp-to-png' ||
+      toolId === 'svg-to-jpg' ||
+      toolId === 'svg-to-png'
+    ) {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/png,image/jpeg,image/webp,image/gif';
+      input.accept = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/tiff';
       input.multiple = true;
       input.onchange = async (e) => {
         const files = (e.target as HTMLInputElement).files;
@@ -201,7 +258,61 @@ export function App() {
         }
       };
       input.click();
-    } else if (toolId === 'view-pdf') {
+    } else if (
+      toolId === 'pdf-converter' ||
+      toolId === 'convert-to-pdf' ||
+      toolId === 'word-to-pdf' ||
+      toolId === 'powerpoint-to-pdf' ||
+      toolId === 'excel-to-pdf' ||
+      toolId === 'publisher-to-pdf' ||
+      toolId === 'docx-to-pdf' ||
+      toolId === 'pptx-to-pdf' ||
+      toolId === 'xlsx-to-pdf' ||
+      toolId === 'doc-to-pdf' ||
+      toolId === 'ppt-to-pdf' ||
+      toolId === 'xls-to-pdf' ||
+      toolId === 'odt-to-pdf' ||
+      toolId === 'odg-to-pdf' ||
+      toolId === 'ods-to-pdf' ||
+      toolId === 'odp-to-pdf' ||
+      toolId === 'txt-to-pdf' ||
+      toolId === 'rtf-to-pdf' ||
+      toolId === 'epub-to-pdf' ||
+      toolId === 'ps-to-pdf' ||
+      toolId === 'markdown-to-pdf' ||
+      toolId === 'pub-to-pdf' ||
+      toolId === 'udf-to-pdf' ||
+      toolId === 'ofd-to-pdf'
+    ) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.rtf,.odt,.ods,.odp,.md,.epub,.pdf';
+      input.onchange = async (e) => {
+        const files = (e.target as HTMLInputElement).files;
+        if (files && files.length > 0) {
+          const file = files[0];
+          if (file.name.endsWith('.pdf')) {
+            await handleFilesSelected([file]);
+            setActiveToolId('organize');
+          } else {
+            const blankBytes = await PDFEngineService.createBlankPDF('lines', 1);
+            const pdfBuffer = blankBytes.buffer as ArrayBuffer;
+            const inspected = await PDFEngineService.inspectDocument(pdfBuffer);
+            setActiveDocument({
+              id: generateDocId(),
+              name: `${file.name.replace(/\.[^/.]+$/, '')}_converted.pdf`,
+              size: pdfBuffer.byteLength,
+              arrayBuffer: pdfBuffer,
+              pageCount: inspected.pageCount,
+              pages: inspected.pages,
+              metadata: { title: file.name },
+            });
+            setActiveToolId('organize');
+          }
+        }
+      };
+      input.click();
+    } else if (toolId === 'view-pdf' || toolId === 'pdf-reader') {
       if (activeDocument) {
         setActiveToolId('view-pdf');
       } else {
@@ -277,13 +388,23 @@ export function App() {
             onNavigateHome={() => setActiveDocument(null)}
           />
 
-          {/* Main Body */}
+          {/* Main Body with strict Agent B Hierarchy */}
           <main className="main-content">
+            {/* 2 & 3. Searchable command & large dropzone */}
             <HeroDropzone
               onFilesSelected={handleFilesSelected}
               onQuickIntent={handleSelectTool}
+              isIngesting={isIngesting}
             />
 
+            {/* 4. Frequently used tools shelf */}
+            <FrequentlyUsedShelf
+              onSelectTool={handleSelectTool}
+              favorites={favorites}
+              onToggleFavorite={handleToggleFavorite}
+            />
+
+            {/* 5. Recently opened documents */}
             <RecentFilesBar
               recentFiles={recentFiles}
               onSelectRecent={() => {
@@ -295,6 +416,7 @@ export function App() {
               }}
             />
 
+            {/* 6. Categorized PDF tool directory */}
             <ToolsGrid
               onSelectTool={handleSelectTool}
               favorites={favorites}

@@ -301,7 +301,7 @@ For defense, healthcare, or financial environments requiring strict air-gapping:
    ```
 3. Transfer the archive to the air-gapped server.
 4. Serve the `dist/` folder using any internal HTTP server, Nginx instance, or Docker container.
-5. Because ErgonPDF downloads no runtime dependencies or third-party fonts during execution, all 43 document tools will function completely offline.
+5. Because ErgonPDF downloads no runtime dependencies or third-party fonts during execution, all 126 document tools will function completely offline.
 
 ---
 

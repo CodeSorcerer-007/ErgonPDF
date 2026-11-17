@@ -1,0 +1,30 @@
+{
+  "version": "1.2.0",
+  "description": "The Open-Source, Privacy-First All-in-One Local PDF Workspace (100% In-Browser WASM)",
+  "homepage": "https://github.com/CodeSorcerer-007/ErgonPDF",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/CodeSorcerer-007/ErgonPDF/releases/download/v1.2.0/ErgonPDF-v1.2.0-Windows-Setup.zip",
+      "hash": "a0e198e4d7078d131cca6a9f05de58bb1be741d21f10cb1a35928c49aeffb510"
+    }
+  },
+  "shortcuts": [
+    [
+      "installer\\ErgonPDF.bat",
+      "ErgonPDF",
+      "",
+      "installer\\icon.ico"
+    ]
+  ],
+  "checkver": {
+    "github": "https://github.com/CodeSorcerer-007/ErgonPDF"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/CodeSorcerer-007/ErgonPDF/releases/download/v$version/ErgonPDF-v$version-Windows-Setup.zip"
+      }
+    }
+  }
+}

@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.0] - 2026-11-15
 
 ### Added
+- **Complete PDF24 Catalog Cloning & Expansion (126 Tools)**:
+  - Reverse-engineered and integrated all 124 public tools and converters from PDF24 (`https://tools.pdf24.org/en/`), achieving 100% functional parity.
+  - Retained ErgonPDF's signature offline capabilities: `ai-chat` (AI Document Studio with zero-cloud semantic Q&A and citations) and `alternate-mix` (Scanner duplex odd/even interleaving), establishing a unified catalog of **126 precision offline PDF utilities**.
+  - Enforced the **Non-Negotiable Privacy Invariant**: all 126 tools execute strictly in client browser memory via WebAssembly/pure JavaScript with zero remote uploads, third-party servers, or telemetry tracking.
+  - Implemented dynamic UI routing and dispatch across `App.tsx` (modals, batch file pickers, converters) and `UniversalWorkspace.tsx` (tab panels & contextual control drawers).
+  - Updated `ToolsGrid.tsx` and `CommandPalette.tsx` to dynamically index and search all 126 tools with Lucide icons (added `Printer`).
+- **Offline Tesseract.js OCR Bundling**:
+  - Bundled `eng.traineddata.gz` (10.4 MB), `worker.min.js`, `tesseract-core.wasm`, and `tesseract-core-simd-lstm.wasm` directly into `public/tesseract/`, eliminating external CDN and network fetches for OCR text recognition.
+- **Interactive Form Builder Dropdowns & Radios**:
+  - Added support for interactive dropdowns (`form.createDropdown`) and radio groups (`form.createRadioGroup`) in `PDFEngineService.addInteractiveFormFields`.
+- **Decryption Password Support (Unlock PDF)**:
+  - Added `PDFEngineService.unlockDocument` supporting user-supplied passwords to decrypt password-protected PDFs into clean unencrypted documents.
+- **ISO-Compliant PDF/A Archival Profile**:
+  - Injected standard XMP metadata packet with official `pdfaid:part` 1 / `pdfaid:conformance` B schemas and `OutputIntents` dictionary in `PDFEngineService.convertToPdfA`.
+- **2D Spatial Table Extraction to CSV**:
+  - Implemented geometric Y-line clustering and X-gap column extraction in `PDFEngineService.extractTablesToCSV`.
 - **Windows Desktop Application & Offline Installer**:
   - Added 1-click Windows installer (`install-ergonpdf.bat` and `installer/install-ergonpdf.bat`) that configures a local background loopback server (`127.0.0.1:8096`), generates Desktop and Start Menu shortcuts, and integrates a custom multi-resolution `.ico` brand icon.
   - Added standalone static server (`installer/serve.cjs`) with zero external runtime dependencies, automatic port fallback, and background execution (`installer/run-hidden.vbs`).
@@ -45,9 +61,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Unprivileged Container Execution**: Hardened [`Dockerfile`](Dockerfile) to run under non-root `USER nginx`.
 - **Exact Version Pinning**: Pinned all production and development dependencies in [`package.json`](package.json) to exact semantic versions (1.2.0) and added `tar` 7.5.22 override.
-- **Expanded Test Suites**: Expanded [`scripts/smoke-test.js`](scripts/smoke-test.js) to 85 tests (including `/healthz`) and [`scripts/test-features.js`](scripts/test-features.js) to 20 engine tests (including overlay and underlay templates).
+- **Expanded Test Suites**: Expanded [`scripts/smoke-test.js`](scripts/smoke-test.js) to 168 tests (auditing all 126 UI tool routes, server health, and engine interfaces) and [`scripts/test-features.js`](scripts/test-features.js) to 25 engine tests (including form dropdowns/radios, decrypt password, table CSV extraction, and permanent redaction).
 
 ### Fixed
+- **Permanent Vector Text Redaction Purge**: Overhauled `applyRedactions` in `pdfEngine.ts` to discover underlying text layout items via PDF.js, scrub literal, hex, and UTF-16 stream tokens, delete `/Annots`, and apply blackout rectangles, ensuring redacted text is permanently removed from search, copy/paste, and extraction.
+- **CVE-2024-4367 Font Eval Mitigation**: Enforced `isEvalSupported: false` across all PDF.js document loading configurations to prevent arbitrary script execution from malicious font streams.
+- **DNS Rebinding Guard**: Hardened `installer/serve.cjs` with strict `Host` header validation, rejecting non-loopback requests with `403 Forbidden`. Added single-instance focus detection.
+- **Page Tree Reordering Bounds**: Added array index and page count bounds checks in `reorderAndTransformPages` to eliminate `undefined (reading 'node')` crashes during complex reordering.
+- **Adaptive Compression Inflation Safeguard**: Enforced strict `<= originalSize` size guarantee in `compressDocument` across both optimization branches.
+- **Document Metadata Synchronization**: Implemented `PDFEngineService.updateMetadata` and wired `metadataFields` in `UniversalWorkspace.tsx` upon export.
 - **Underlay Template Rendering**: Implemented the full underlay branch in `PDFEngineService.overlayDocument`, ensuring document pages are drawn on top of the underlay template rather than producing empty pages.
 - **Empty Contents Embedding**: Added automatic empty-contents detection and transparent stream initialization in `overlayDocument` and `createBlankPDF`, resolving `pdf-lib` `"Can't embed page with missing Contents"` exception.
 - **Input Sanitization & Bounds**:

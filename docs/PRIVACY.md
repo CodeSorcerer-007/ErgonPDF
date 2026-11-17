@@ -57,7 +57,7 @@ ErgonPDF uses exclusively vetted, open-source libraries that execute within the 
 
 - **pdf-lib**: Pure JavaScript / TypeScript PDF manipulation engine. Executes entirely in the main thread or Web Workers.
 - **pdfjs-dist**: Mozilla's industry-standard PDF rendering and inspection engine.
-- **tesseract.js**: WebAssembly port of the Tesseract OCR engine. Neural network language models (`eng.traineddata`) are cached in local browser storage after initial fetch, enabling full offline OCR.
+- **tesseract.js**: WebAssembly port of the Tesseract OCR engine. Neural network language models (`eng.traineddata.gz`) and WebAssembly worker runtimes are bundled locally directly within the public static assets (`public/tesseract/`), enabling 100% offline OCR without any external network dependency.
 - **@pdfsmaller/pdf-encrypt**: Local Web Crypto API-based AES-256 and RC4 encryption and decryption routines.
 - **qrcode**: Client-side QR generation into in-memory SVG/PNG elements.
 - **jszip**: Client-side ZIP packaging for batch extractions.

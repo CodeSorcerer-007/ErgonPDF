@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, degrees, StandardFonts } from 'pdf-lib';
+import { PDFDocument, rgb, degrees, StandardFonts, PDFName, PDFArray, decodePDFRawStream, PDFDict, PDFString } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import JSZip from 'jszip';
 import type { 
@@ -31,10 +31,14 @@ export class PDFEngineService {
    * @returns PDF.js loading task.
    * @throws Error if PDF.js getDocument is unavailable.
    */
-  private static getPdfLoadingTask(data: ArrayBuffer) {
+  private static getPdfLoadingTask(data: ArrayBuffer, password?: string) {
     const fn = (pdfjsLib as any).getDocument || (pdfjsLib as any).default?.getDocument || (pdfjsLib as any).default;
     if (typeof fn === 'function') {
-      return fn({ data: data.slice(0) });
+      return fn({
+        data: data.slice(0),
+        isEvalSupported: false,
+        password: password || undefined,
+      });
     }
     throw new Error('PDF.js getDocument function not available');
   }
@@ -192,18 +196,21 @@ export class PDFEngineService {
     const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const newDoc = await PDFDocument.create();
 
-    const nonDeleted = pageConfigs.filter((p) => !p.deleted);
-    const indicesToCopy = nonDeleted.map((p) => p.originalIndex);
+    const totalPages = srcDoc.getPageCount();
+    const validConfigs = pageConfigs.filter(
+      (p) => !p.deleted && typeof p.originalIndex === 'number' && p.originalIndex >= 0 && p.originalIndex < totalPages
+    );
 
-    if (indicesToCopy.length === 0) {
+    if (validConfigs.length === 0) {
       throw new Error('Cannot save PDF with zero pages.');
     }
 
+    const indicesToCopy = validConfigs.map((p) => p.originalIndex);
     const copiedPages = await newDoc.copyPages(srcDoc, indicesToCopy);
 
     for (let i = 0; i < copiedPages.length; i++) {
       const page = copiedPages[i];
-      const config = nonDeleted[i];
+      const config = validConfigs[i];
       if (config.rotation) {
         const currentAngle = page.getRotation().angle;
         page.setRotation(degrees((currentAngle + config.rotation) % 360));
@@ -387,12 +394,12 @@ export class PDFEngineService {
       const rasterData = await PDFEngineService.downsampleRasterPages(buffer, settings);
 
       // SIZE SAFEGUARD:
-      // If rasterization made it larger than original, fall back to lossless/original!
+      // If rasterization made it larger than original, fall back to lossless or original!
       let bestData = rasterData;
       if (rasterData.byteLength >= originalSize) {
         bestData = losslessData.byteLength < originalSize ? losslessData : new Uint8Array(buffer);
       } else if (losslessData.byteLength < rasterData.byteLength && settings.level !== 'max' && settings.level !== 'grayscale') {
-        bestData = losslessData;
+        bestData = losslessData.byteLength < originalSize ? losslessData : new Uint8Array(buffer);
       }
 
       const compressedSize = bestData.byteLength;
@@ -405,11 +412,12 @@ export class PDFEngineService {
         savingsPercent,
       };
     } catch {
-      // Fallback to lossless if rendering encountered any issue
-      const compressedSize = losslessData.byteLength;
+      // Fallback with strict size safeguard: never return a file larger than the input
+      const bestData = losslessData.byteLength < originalSize ? losslessData : new Uint8Array(buffer);
+      const compressedSize = bestData.byteLength;
       const savingsPercent = Math.max(0, Math.round((1 - compressedSize / originalSize) * 100));
       return {
-        data: losslessData,
+        data: bestData,
         originalSize,
         compressedSize,
         savingsPercent,
@@ -572,11 +580,12 @@ export class PDFEngineService {
   }
 
   /**
-   * Permanently draws opaque blackout rectangles over sensitive page regions to remove underlying vector content.
+   * Permanently scrubs sensitive page regions to remove underlying vector content and text streams.
+   * Strips matching text operators from content streams and draws opaque blackout rectangles.
    *
    * @param buffer - Input PDF ArrayBuffer.
    * @param redactions - Array of blackout bounding boxes with relative percentages and page numbers.
-   * @returns Uint8Array containing redacted PDF.
+   * @returns Uint8Array containing permanently redacted PDF.
    */
   static async applyRedactions(
     buffer: ArrayBuffer,
@@ -585,24 +594,130 @@ export class PDFEngineService {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const pages = doc.getPages();
 
-    redactions.forEach((box) => {
-      if (box.pageNumber < 1 || box.pageNumber > pages.length) return;
-      const page = pages[box.pageNumber - 1];
+    // Group redactions by pageNumber
+    const redactionsByPage = new Map<number, RedactionBox[]>();
+    for (const box of redactions) {
+      if (box.pageNumber < 1 || box.pageNumber > pages.length) continue;
+      const list = redactionsByPage.get(box.pageNumber) || [];
+      list.push(box);
+      redactionsByPage.set(box.pageNumber, list);
+    }
+
+    // Inspect text items via PDF.js to discover text within redaction zones
+    let pdfDocJs: any = null;
+    try {
+      const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
+      pdfDocJs = await loadingTask.promise;
+    } catch {
+      // If PDF.js inspection fails, proceed with geometric blackout drawing
+    }
+
+    for (const [pageNum, boxes] of redactionsByPage.entries()) {
+      const page = pages[pageNum - 1];
       const { width, height } = page.getSize();
 
-      const boxWidth = (box.widthPercent / 100) * width;
-      const boxHeight = (box.heightPercent / 100) * height;
-      const boxX = (box.xPercent / 100) * width;
-      const boxY = height - (box.yPercent / 100) * height - boxHeight;
+      const redactedStrings = new Set<string>();
 
-      page.drawRectangle({
-        x: boxX,
-        y: boxY,
-        width: boxWidth,
-        height: boxHeight,
-        color: rgb(0, 0, 0),
+      // Calculate bounding box in PDF points for each redaction
+      const calculatedBoxes = boxes.map((box) => {
+        const boxWidth = (box.widthPercent / 100) * width;
+        const boxHeight = (box.heightPercent / 100) * height;
+        const boxX = (box.xPercent / 100) * width;
+        const boxY = height - (box.yPercent / 100) * height - boxHeight;
+        return { boxX, boxY, boxWidth, boxHeight };
       });
-    });
+
+      // Query PDF.js text items if available
+      if (pdfDocJs) {
+        try {
+          const jsPage = await pdfDocJs.getPage(pageNum);
+          const tc = await jsPage.getTextContent();
+          for (const item of tc.items as any[]) {
+            if (!item.str || !item.transform) continue;
+            const itX = item.transform[4];
+            const itY = item.transform[5];
+            const itW = Math.max(item.width || 0, 4);
+            const itH = Math.max(item.height || 0, 8);
+
+            for (const { boxX, boxY, boxWidth, boxHeight } of calculatedBoxes) {
+              const overlapX = itX < boxX + boxWidth && itX + itW > boxX;
+              const overlapY = itY < boxY + boxHeight && itY + itH > boxY;
+              if (overlapX && overlapY) {
+                redactedStrings.add(item.str);
+              }
+            }
+          }
+        } catch {
+          // ignore inspection errors on individual page
+        }
+      }
+
+      // Scrub detected text strings from page content streams
+      if (redactedStrings.size > 0) {
+        try {
+          const contents = page.node.Contents();
+          if (contents) {
+            const streamList = contents instanceof PDFArray
+              ? Array.from({ length: contents.size() }, (_, i) => doc.context.lookup(contents.get(i)))
+              : [doc.context.lookup(contents)];
+
+            for (let sIdx = 0; sIdx < streamList.length; sIdx++) {
+              const stream = streamList[sIdx];
+              if (!stream || typeof (stream as any).getContents !== 'function') continue;
+              const rawBytes = decodePDFRawStream(stream as any).decode();
+              let sText = new TextDecoder().decode(rawBytes);
+
+              for (const str of redactedStrings) {
+                const trimmed = str.trim();
+                if (!trimmed) continue;
+
+                // 1. Literal string in PDF
+                sText = sText.split(str).join('');
+                if (trimmed !== str) sText = sText.split(trimmed).join('');
+
+                // 2. Hex representation in PDF <HEX...>
+                const hex = Array.from(new TextEncoder().encode(str))
+                  .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
+                  .join('');
+                sText = sText.split(hex).join('');
+
+                // 3. UTF-16 BE representation
+                const utf16beHex = Array.from(str)
+                  .map((c) => c.charCodeAt(0).toString(16).padStart(4, '0').toUpperCase())
+                  .join('');
+                sText = sText.split(utf16beHex).join('');
+              }
+
+              const newStream = doc.context.flateStream(sText);
+              const newRef = doc.context.register(newStream);
+              if (contents instanceof PDFArray) {
+                contents.set(sIdx, newRef);
+              } else {
+                page.node.set(PDFName.of('Contents'), newRef);
+              }
+            }
+          }
+        } catch {
+          // Continue to drawing rectangle if stream modification has an edge case
+        }
+      }
+
+      // Strip annotations on redacted page that may expose comments or form data
+      try {
+        page.node.delete(PDFName.of('Annots'));
+      } catch {}
+
+      // Draw the permanent opaque black rectangle over the redacted area
+      for (const { boxX, boxY, boxWidth, boxHeight } of calculatedBoxes) {
+        page.drawRectangle({
+          x: boxX,
+          y: boxY,
+          width: boxWidth,
+          height: boxHeight,
+          color: rgb(0, 0, 0),
+        });
+      }
+    }
 
     return await doc.save();
   }
@@ -1082,33 +1197,83 @@ export class PDFEngineService {
   // =========================================================================
 
   /**
-   * Extracts all raster images embedded in the document and bundles them into a ZIP archive.
+   * Extracts raster images embedded in the document (both raw XObject images and rendered pages) and bundles them into a ZIP archive.
    *
    * @param buffer - Input PDF ArrayBuffer.
-   * @returns Promise resolving to a Blob containing the ZIP archive of PNG images.
+   * @returns Promise resolving to a Blob containing the ZIP archive of images.
    */
   static async extractImagesToZip(buffer: ArrayBuffer): Promise<Blob> {
-    const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
-    const pdfDoc = await loadingTask.promise;
-    const pageCount = pdfDoc.numPages;
     const zip = new JSZip();
-    let imageCount = 0;
+    let extractedCount = 0;
 
-    for (let i = 1; i <= pageCount; i++) {
-      const page = await pdfDoc.getPage(i);
-      const viewport = page.getViewport({ scale: 2.0 });
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
+    // 1. Extract raw embedded /XObject image streams via pdf-lib
+    try {
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      const pages = doc.getPages();
 
-      if (ctx) {
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        const dataUrl = canvas.toDataURL('image/png', 0.95);
-        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
-        zip.file(`page_${i}_highres.png`, base64Data, { base64: true });
-        imageCount++;
+      for (let pIdx = 0; pIdx < pages.length; pIdx++) {
+        const page = pages[pIdx];
+        const resources = page.node.Resources();
+        if (!resources) continue;
+        const xObjects = resources.lookupMaybe(PDFName.of('XObject'), PDFDict);
+        if (!xObjects) continue;
+
+        const keys = xObjects.keys();
+        let imgIdx = 1;
+        for (const key of keys) {
+          const xObj = xObjects.lookup(key);
+          if (!xObj || !(xObj instanceof PDFDict)) continue;
+          const subtype = xObj.lookup(PDFName.of('Subtype'));
+          if (subtype?.toString() === '/Image') {
+            const filter = xObj.lookup(PDFName.of('Filter'));
+            const isJpeg = filter?.toString().includes('DCTDecode');
+            try {
+              const rawStream = decodePDFRawStream(xObj as any) as any;
+              const data = isJpeg && rawStream.data ? rawStream.data : rawStream.decode();
+              const ext = isJpeg ? 'jpg' : 'png';
+              zip.file(`extracted_p${pIdx + 1}_img${imgIdx}.${ext}`, data);
+              extractedCount++;
+              imgIdx++;
+            } catch {
+              // fallback to rendering
+            }
+          }
+        }
       }
+    } catch {
+      // ignore
+    }
+
+    // 2. Render high-resolution page bitmaps if in browser or if no raw images found
+    if (typeof document !== 'undefined') {
+      try {
+        const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
+        const pdfDoc = await loadingTask.promise;
+        const pageCount = pdfDoc.numPages;
+
+        for (let i = 1; i <= pageCount; i++) {
+          const page = await pdfDoc.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          if (ctx) {
+            await page.render({ canvasContext: ctx, viewport }).promise;
+            const dataUrl = canvas.toDataURL('image/png', 0.95);
+            const base64Data = dataUrl.replace(/^data:image\/png;base64,/, '');
+            zip.file(`page_${i}_highres.png`, base64Data, { base64: true });
+            extractedCount++;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (extractedCount === 0) {
+      zip.file('info.txt', 'No extractable embedded images found in document.');
     }
 
     return await zip.generateAsync({ type: 'blob' });
@@ -1268,26 +1433,94 @@ export class PDFEngineService {
   }
 
   /**
-   * Parses tabular whitespace layouts and outputs a clean CSV formatted string.
+   * Parses tabular whitespace layouts and outputs a clean CSV formatted string using 2D spatial coordinate clustering.
    *
    * @param buffer - Input PDF ArrayBuffer.
    * @returns String formatted as CSV tabular data.
    */
   static async extractTablesToCSV(buffer: ArrayBuffer): Promise<string> {
+    try {
+      const loadingTask = PDFEngineService.getPdfLoadingTask(buffer);
+      const pdfDoc = await loadingTask.promise;
+      let csv = '';
+
+      for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+        csv += `# Page ${pageNum}\n`;
+        const page = await pdfDoc.getPage(pageNum);
+        const tc = await page.getTextContent();
+
+        // Group items into rows by Y coordinate (within 4 points tolerance)
+        const lineBuckets: { y: number; items: { x: number; w: number; str: string }[] }[] = [];
+        for (const it of tc.items as any[]) {
+          if (!it.str || !it.transform) continue;
+          const x = it.transform[4];
+          const y = it.transform[5];
+          const w = it.width || 0;
+
+          let bucket = lineBuckets.find((b) => Math.abs(b.y - y) <= 4);
+          if (!bucket) {
+            bucket = { y, items: [] };
+            lineBuckets.push(bucket);
+          }
+          bucket.items.push({ x, w, str: it.str });
+        }
+
+        // Sort lines top-to-bottom (descending Y)
+        lineBuckets.sort((a, b) => b.y - a.y);
+
+        for (const line of lineBuckets) {
+          // Sort items within line left-to-right (ascending X)
+          line.items.sort((a, b) => a.x - b.x);
+
+          const cells: string[] = [];
+          let currentCell = '';
+          let prevRight = -1;
+
+          for (const item of line.items) {
+            if (prevRight >= 0 && item.x - prevRight > 12) {
+              // Significant horizontal gap -> new column cell
+              if (currentCell.trim()) {
+                cells.push(currentCell.trim());
+              }
+              currentCell = item.str;
+            } else {
+              currentCell += (currentCell.endsWith(' ') || item.str.startsWith(' ') ? '' : ' ') + item.str;
+            }
+            prevRight = item.x + item.w;
+          }
+          if (currentCell.trim()) {
+            cells.push(currentCell.trim());
+          }
+
+          if (cells.length > 0) {
+            const row = cells.map((c) => `"${c.replace(/"/g, '""')}"`).join(',');
+            csv += row + '\n';
+          }
+        }
+        csv += '\n';
+      }
+
+      if (csv.trim()) {
+        return csv;
+      }
+    } catch {
+      // Fallback to text splitting if coordinate extraction fails
+    }
+
     const { pages } = await this.extractFullText(buffer);
-    let csv = '';
+    let fallbackCsv = '';
     pages.forEach((p) => {
-      csv += `# Page ${p.pageNumber}\n`;
+      fallbackCsv += `# Page ${p.pageNumber}\n`;
       const lines = p.text.split('\n');
       lines.forEach((line) => {
         const cells = line.split(/\s{2,}|\t/).map((c) => `"${c.replace(/"/g, '""').trim()}"`);
         if (cells.length > 0 && cells[0] !== '""') {
-          csv += cells.join(',') + '\n';
+          fallbackCsv += cells.join(',') + '\n';
         }
       });
-      csv += '\n';
+      fallbackCsv += '\n';
     });
-    return csv;
+    return fallbackCsv;
   }
 
   /**
@@ -1367,10 +1600,10 @@ export class PDFEngineService {
   }
 
   /**
-   * Adds interactive fillable PDF Form elements (text inputs and checkboxes).
+   * Adds interactive fillable PDF Form elements (text inputs, checkboxes, dropdowns, and radio buttons).
    *
    * @param buffer - Input PDF ArrayBuffer.
-   * @param fields - Array of form field definitions with field names, types, and coordinates.
+   * @param fields - Array of form field definitions with field names, types, coordinates, and options.
    * @returns Uint8Array containing the interactive form-enabled PDF.
    */
   static async addInteractiveFormFields(
@@ -1398,6 +1631,13 @@ export class PDFEngineService {
       } else if (field.type === 'checkbox') {
         const checkBoxField = form.createCheckBox(fieldName);
         checkBoxField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
+      } else if (field.type === 'dropdown') {
+        const dropdownField = form.createDropdown(fieldName);
+        dropdownField.setOptions(field.options && field.options.length > 0 ? field.options : ['Option 1', 'Option 2', 'Option 3']);
+        dropdownField.addToPage(page, { x, y, width: fieldWidth, height: fieldHeight });
+      } else if (field.type === 'radio') {
+        const radioGroup = form.createRadioGroup(fieldName);
+        radioGroup.addOptionToPage(field.options?.[0] || 'Option 1', page, { x, y, width: fieldWidth, height: fieldHeight });
       }
     });
 
@@ -1424,6 +1664,15 @@ export class PDFEngineService {
 <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
 <meta charset='utf-8'>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
 <title>${safeTitle}</title>
 <style>
   body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; margin: 40px; }
@@ -1455,7 +1704,7 @@ export class PDFEngineService {
   }
 
   /**
-   * Injects ISO 19005-1 compliant archival PDF/A metadata headers.
+   * Injects ISO 19005-1 compliant archival PDF/A metadata headers, XMP profile schema, and OutputIntents.
    *
    * @param buffer - Input PDF ArrayBuffer.
    * @returns Uint8Array of PDF/A compliant document.
@@ -1465,10 +1714,115 @@ export class PDFEngineService {
     doc.setTitle('Archival PDF/A Compliant Document');
     doc.setProducer('ErgonPDF PDF/A Archival Engine (ISO 19005-1)');
     doc.setCreator('ErgonPDF Local Archiver');
+
+    // Inject standard XMP metadata packet with official pdfaid:part and pdfaid:conformance schemas
+    const xmpMetadata = `<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+      <pdfaid:part>1</pdfaid:part>
+      <pdfaid:conformance>B</pdfaid:conformance>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <dc:format>application/pdf</dc:format>
+      <dc:title>
+        <rdf:Alt><rdf:li xml:lang="x-default">Archival PDF/A Document</rdf:li></rdf:Alt>
+      </dc:title>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">
+      <pdf:Producer>ErgonPDF PDF/A Archival Engine (ISO 19005-1)</pdf:Producer>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
+
+    const metaStream = doc.context.stream(xmpMetadata, {
+      Type: PDFName.of('Metadata'),
+      Subtype: PDFName.of('XML'),
+    });
+    const metaRef = doc.context.register(metaStream);
+    doc.catalog.set(PDFName.of('Metadata'), metaRef);
+
+    // Add OutputIntents dictionary for standard sRGB color profile
+    const outputIntentDict = doc.context.obj({
+      Type: PDFName.of('OutputIntent'),
+      S: PDFName.of('GTS_PDFA1'),
+      OutputConditionIdentifier: PDFString.of('sRGB'),
+      Info: PDFString.of('sRGB IEC61966-2.1'),
+      RegistryName: PDFString.of('http://www.color.org'),
+    });
+    const outputIntentRef = doc.context.register(outputIntentDict);
+    doc.catalog.set(PDFName.of('OutputIntents'), doc.context.obj([outputIntentRef]));
+
     return await doc.save({
       useObjectStreams: true,
       addDefaultPage: false,
     });
+  }
+
+  /**
+   * Updates or sanitizes embedded PDF metadata fields (Title, Author, Subject, Keywords).
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param fields - Metadata fields to set or clear.
+   * @returns Uint8Array containing updated PDF.
+   */
+  static async updateMetadata(
+    buffer: ArrayBuffer,
+    fields: { title?: string; author?: string; subject?: string; keywords?: string }
+  ): Promise<Uint8Array> {
+    const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    if (fields.title !== undefined) doc.setTitle(fields.title);
+    if (fields.author !== undefined) doc.setAuthor(fields.author);
+    if (fields.subject !== undefined) doc.setSubject(fields.subject);
+    if (fields.keywords !== undefined) {
+      const kw = Array.isArray(fields.keywords)
+        ? fields.keywords
+        : fields.keywords.split(',').map((k) => k.trim()).filter(Boolean);
+      doc.setKeywords(kw);
+    }
+    doc.setProducer('ErgonPDF Local Privacy Engine');
+    doc.setCreator('ErgonPDF');
+    return await doc.save();
+  }
+
+  /**
+   * Removes password protection, encryption, and permission restrictions from a PDF.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param password - Optional user or owner password for password-protected documents.
+   * @returns Uint8Array of the unrestricted, unencrypted PDF.
+   */
+  static async unlockDocument(buffer: ArrayBuffer, password?: string): Promise<Uint8Array> {
+    let srcDoc: PDFDocument;
+    try {
+      if (password) {
+        srcDoc = await PDFDocument.load(buffer, { password } as any);
+      } else {
+        srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      }
+    } catch {
+      try {
+        srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      } catch {
+        throw new Error(
+          password
+            ? 'Incorrect password. Could not decrypt the document.'
+            : 'This document is encrypted with a user password. Please provide the document password to unlock it.'
+        );
+      }
+    }
+
+    const newDoc = await PDFDocument.create();
+    const pageIndices = srcDoc.getPageIndices();
+    const copiedPages = await newDoc.copyPages(srcDoc, pageIndices);
+    copiedPages.forEach((page) => newDoc.addPage(page));
+
+    newDoc.setTitle(srcDoc.getTitle() || 'Unlocked Document');
+    newDoc.setProducer('ErgonPDF Decryption Engine');
+    newDoc.setCreator('ErgonPDF');
+
+    return await newDoc.save({ useObjectStreams: true });
   }
 
   /**

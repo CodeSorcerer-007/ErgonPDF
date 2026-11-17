@@ -1,12 +1,19 @@
 import React from 'react';
-import { Unlock, Check, AlertTriangle } from 'lucide-react';
+import { Unlock, Check, AlertTriangle, Key } from 'lucide-react';
 
 export interface UnlockToolProps {
   isProcessing: boolean;
   onProcess: () => void;
+  password?: string;
+  onPasswordChange?: (pw: string) => void;
 }
 
-export const UnlockTool: React.FC<UnlockToolProps> = ({ isProcessing, onProcess }) => {
+export const UnlockTool: React.FC<UnlockToolProps> = ({
+  isProcessing,
+  onProcess,
+  password = '',
+  onPasswordChange,
+}) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -19,6 +26,31 @@ export const UnlockTool: React.FC<UnlockToolProps> = ({ isProcessing, onProcess 
       <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
         Strip permission restrictions (printing, copying, form filling) and owner security wrappers from documents you own.
       </p>
+
+      {onPasswordChange && (
+        <div>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Key size={12} />
+            <span>Document Password (if locked)</span>
+          </label>
+          <input
+            type="password"
+            placeholder="Leave empty if only restricted by permissions"
+            value={password}
+            onChange={(e) => onPasswordChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-medium)',
+              background: 'var(--bg-tertiary)',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              marginTop: '4px',
+            }}
+          />
+        </div>
+      )}
 
       <div
         className="glass-card"
@@ -34,7 +66,7 @@ export const UnlockTool: React.FC<UnlockToolProps> = ({ isProcessing, onProcess 
           <AlertTriangle size={14} color="var(--accent-primary)" />
           <span>Client-Side Decryption Model</span>
         </div>
-        Client-side decryption operates purely inside your browser without transmitting files to any server. If a document is locked with an unknown user password, it cannot be decrypted without the key. However, for documents protected by permission restrictions or known passwords, ErgonPDF parses the streams with permission overrides and re-synthesizes a clean, unencrypted PDF.
+        Client-side decryption operates purely inside your browser without transmitting files to any server. If a document is protected by permission restrictions, ErgonPDF overrides them directly. If protected by a user password, enter it above to permanently decrypt and produce a clean, unrestricted PDF.
       </div>
 
       <button
@@ -45,7 +77,7 @@ export const UnlockTool: React.FC<UnlockToolProps> = ({ isProcessing, onProcess 
         style={{ width: '100%' }}
       >
         <Check size={14} />
-        <span>Try Unlock & Save Unrestricted PDF</span>
+        <span>Unlock & Save Unrestricted PDF</span>
       </button>
     </div>
   );

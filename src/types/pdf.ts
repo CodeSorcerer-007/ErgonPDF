@@ -142,7 +142,7 @@ export interface ResizeSettings {
 }
 
 export interface FormFieldDef {
-  type: 'text' | 'checkbox' | 'dropdown';
+  type: 'text' | 'checkbox' | 'dropdown' | 'radio';
   name: string;
   pageNumber: number;
   xPercent: number;

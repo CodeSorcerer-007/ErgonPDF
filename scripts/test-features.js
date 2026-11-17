@@ -217,6 +217,62 @@ async function runSelfTests() {
     if ((await getPageCount(underlaid)) !== 2) throw new Error('Expected 2 pages in underlaid PDF');
   });
 
+  // 21. Permanent Vector Redaction (Text Purge & Sanitization)
+  await test('applyRedactions permanently removes underlying text from extraction', async () => {
+    const redactedBytes = await PDFEngineService.applyRedactions(buffer, [
+      { pageNumber: 1, xPercent: 5, yPercent: 4, widthPercent: 60, heightPercent: 6 }
+    ]);
+    const { pages } = await PDFEngineService.extractFullText(redactedBytes.buffer.slice(redactedBytes.byteOffset, redactedBytes.byteOffset + redactedBytes.byteLength));
+    if (pages[0].text.includes('MASTER SERVICES AGREEMENT')) {
+      throw new Error('Redacted string "MASTER SERVICES AGREEMENT" is still extractable from page 1!');
+    }
+  });
+
+  // 22. Metadata Scrubber & Updater
+  await test('updateMetadata updates Title, Author, and Subject properties', async () => {
+    const updated = await PDFEngineService.updateMetadata(buffer, {
+      title: 'Audited Report 2026',
+      author: 'Ergon Security Team',
+      subject: 'Verification Clearance',
+      keywords: 'security, audit, privacy'
+    });
+    const doc = await PDFDocument.load(updated);
+    if (doc.getTitle() !== 'Audited Report 2026') throw new Error(`Expected title 'Audited Report 2026', got '${doc.getTitle()}'`);
+    if (doc.getAuthor() !== 'Ergon Security Team') throw new Error(`Expected author 'Ergon Security Team', got '${doc.getAuthor()}'`);
+    if (doc.getSubject() !== 'Verification Clearance') throw new Error(`Expected subject 'Verification Clearance', got '${doc.getSubject()}'`);
+  });
+
+  // 23. Form Builder Extended Controls (Dropdown & Radio Groups)
+  await test('addInteractiveFormFields embeds dropdown and radio controls', async () => {
+    const formDoc = await PDFEngineService.addInteractiveFormFields(buffer, [
+      { type: 'dropdown', name: 'Country', pageNumber: 1, xPercent: 10, yPercent: 40, widthPercent: 30, heightPercent: 5, options: ['USA', 'Canada', 'Germany'] },
+      { type: 'radio', name: 'Subscription', pageNumber: 1, xPercent: 10, yPercent: 50, widthPercent: 5, heightPercent: 5, options: ['Monthly'] },
+    ]);
+    const doc = await PDFDocument.load(formDoc);
+    const form = doc.getForm();
+    const dropdown = form.getDropdown('Country');
+    if (!dropdown) throw new Error('Dropdown field not found in form');
+    const radio = form.getRadioGroup('Subscription');
+    if (!radio) throw new Error('Radio group field not found in form');
+  });
+
+  // 24. Unlock & Decrypt PDF
+  await test('unlockDocument removes password protection producing clean unencrypted PDF', async () => {
+    const encrypted = await PDFEngineService.encryptDocument(buffer, 'UnlockKey@2026');
+    const unlocked = await PDFEngineService.unlockDocument(encrypted.buffer.slice(encrypted.byteOffset, encrypted.byteOffset + encrypted.byteLength), 'UnlockKey@2026');
+    // Verify it loads without errors or encryption flags
+    const doc = await PDFDocument.load(unlocked);
+    if (doc.getPageCount() !== 2) throw new Error(`Expected 2 pages in unlocked document, got ${doc.getPageCount()}`);
+  });
+
+  // 25. Spatial Table CSV Extraction
+  await test('extractTablesToCSV extracts tabular data into CSV format', async () => {
+    const csv = await PDFEngineService.extractTablesToCSV(buffer);
+    if (!csv.includes('# Page 1') || csv.length < 50) {
+      throw new Error('CSV extraction output empty or invalid');
+    }
+  });
+
   console.log(`\n📊 Test Results: ${passed}/${total} Passed (${Math.round((passed / total) * 100)}%)`);
   if (passed === total) {
     console.log(`🎉 ALL ${total} ENGINE FEATURES VERIFIED WORKING 100%!`);

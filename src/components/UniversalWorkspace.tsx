@@ -12,8 +12,12 @@ import {
   Check, 
   Loader2, 
   ChevronLeft, 
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  Minimize2,
+  FileText
 } from 'lucide-react';
+import { TOOLS_REGISTRY, CATEGORY_LABELS } from '../config/toolsRegistry';
 import type { 
   PDFDocumentState, 
   PDFPageInfo, 
@@ -72,6 +76,12 @@ import {
   ViewPdfTool,
   AiChatTool,
 } from './workspace';
+import {
+  computePageClickSelection,
+  computeToggleSelectPage,
+  computeSelectAllPages,
+  computeKeyboardNavigation,
+} from './workspace/selectionUtils';
 import confetti from 'canvas-confetti';
 
 interface UniversalWorkspaceProps {
@@ -131,6 +141,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     margin: 24,
   });
   const [protectPassword, setProtectPassword] = useState<string>('');
+  const [unlockPassword, setUnlockPassword] = useState<string>('');
   const [metadataFields, setMetadataFields] = useState({
     title: initialDoc.metadata?.title || initialDoc.name.replace('.pdf', ''),
     author: initialDoc.metadata?.author || '',
@@ -323,33 +334,56 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     setPlacedSignatures((prev) => prev.filter((s) => s.id !== `annot-page-${currentPageNum}`));
   };
 
-  // Push state to history
-  const pushHistory = (newPages: PDFPageInfo[]) => {
-    const updatedHistory = history.slice(0, historyIndex + 1);
-    updatedHistory.push(newPages);
-    setHistory(updatedHistory);
-    setHistoryIndex(updatedHistory.length - 1);
-    setDocState((prev: PDFDocumentState) => ({ ...prev, pages: newPages }));
-  };
+  const mainContainerRef = useRef<HTMLElement>(null);
+  const [isThumbnailCollapsed, setIsThumbnailCollapsed] = useState<boolean>(false);
+  const [isToolPanelCollapsed, setIsToolPanelCollapsed] = useState<boolean>(false);
+  const [selectedPageIndices, setSelectedPageIndices] = useState<Set<number>>(new Set([currentPageNum - 1]));
+  const [selectionAnchorIndex, setSelectionAnchorIndex] = useState<number>(currentPageNum - 1);
 
-  const handleUndo = () => {
+  // Push state to history
+  const pushHistory = React.useCallback((newPages: PDFPageInfo[]) => {
+    setHistory((prevHistory) => {
+      const updatedHistory = prevHistory.slice(0, historyIndex + 1);
+      updatedHistory.push(newPages);
+      return updatedHistory;
+    });
+    setHistoryIndex((prev) => prev + 1);
+    setDocState((prev: PDFDocumentState) => ({ ...prev, pages: newPages }));
+  }, [historyIndex]);
+
+  const handleUndo = React.useCallback(() => {
     if (historyIndex > 0) {
       setHistoryIndex((prev: number) => prev - 1);
-      setDocState((prev: PDFDocumentState) => ({ ...prev, pages: history[historyIndex - 1] }));
+      const prevPages = history[historyIndex - 1];
+      setDocState((prev: PDFDocumentState) => ({ ...prev, pages: prevPages }));
+      setCurrentPageNum((p) => Math.min(p, prevPages.length));
+      setSelectedPageIndices((prev) => {
+        const filtered = new Set([...prev].filter((i) => i < prevPages.length));
+        return filtered.size > 0 ? filtered : new Set([0]);
+      });
+      setSelectionAnchorIndex((prev) => Math.max(0, Math.min(prev, prevPages.length - 1)));
     }
-  };
+  }, [historyIndex, history]);
 
-  const handleRedo = () => {
+  const handleRedo = React.useCallback(() => {
     if (historyIndex < history.length - 1) {
       setHistoryIndex((prev: number) => prev + 1);
-      setDocState((prev: PDFDocumentState) => ({ ...prev, pages: history[historyIndex + 1] }));
+      const nextPages = history[historyIndex + 1];
+      setDocState((prev: PDFDocumentState) => ({ ...prev, pages: nextPages }));
+      setCurrentPageNum((p) => Math.min(p, nextPages.length));
+      setSelectedPageIndices((prev) => {
+        const filtered = new Set([...prev].filter((i) => i < nextPages.length));
+        return filtered.size > 0 ? filtered : new Set([0]);
+      });
+      setSelectionAnchorIndex((prev) => Math.max(0, Math.min(prev, nextPages.length - 1)));
     }
-  };
+  }, [historyIndex, history]);
 
   // Page Operations
   const handleRotatePage = (delta: number) => {
+    const targets = selectedPageIndices.size > 0 ? selectedPageIndices : new Set([currentPageNum - 1]);
     const newPages = docState.pages.map((p: PDFPageInfo, idx: number) => {
-      if (idx === currentPageNum - 1) {
+      if (targets.has(idx)) {
         return { ...p, rotation: (p.rotation + delta + 360) % 360 };
       }
       return p;
@@ -357,30 +391,83 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     pushHistory(newPages);
   };
 
-  const handleDeletePage = (pageIdx: number) => {
-    const activePagesList = docState.pages.filter((p: PDFPageInfo) => !p.deleted);
-    if (activePagesList.length <= 1) {
+  const handleRotateSinglePage = (pageIdx: number, delta = 90) => {
+    const newPages = docState.pages.map((p: PDFPageInfo, idx: number) => {
+      if (idx === pageIdx) {
+        return { ...p, rotation: (p.rotation + delta + 360) % 360 };
+      }
+      return p;
+    });
+    pushHistory(newPages);
+  };
+
+  const handleFitToWidth = () => {
+    const targetPage = docState.pages[currentPageNum - 1];
+    if (mainContainerRef.current && targetPage) {
+      const containerWidth = mainContainerRef.current.clientWidth - 80;
+      const isRotated90 = targetPage.rotation === 90 || targetPage.rotation === 270;
+      const pWidth = isRotated90 ? targetPage.height : targetPage.width;
+      if (pWidth > 0 && containerWidth > 0) {
+        const calculated = Number((containerWidth / pWidth).toFixed(2));
+        setZoomScale(Math.min(2.5, Math.max(0.4, calculated)));
+        return;
+      }
+    }
+    setZoomScale(1.25);
+  };
+
+  const handleFitToPage = () => {
+    const targetPage = docState.pages[currentPageNum - 1];
+    if (mainContainerRef.current && targetPage) {
+      const containerWidth = mainContainerRef.current.clientWidth - 80;
+      const containerHeight = mainContainerRef.current.clientHeight - 80;
+      const isRotated90 = targetPage.rotation === 90 || targetPage.rotation === 270;
+      const pWidth = isRotated90 ? targetPage.height : targetPage.width;
+      const pHeight = isRotated90 ? targetPage.width : targetPage.height;
+      if (pWidth > 0 && pHeight > 0 && containerWidth > 0 && containerHeight > 0) {
+        const scaleW = containerWidth / pWidth;
+        const scaleH = containerHeight / pHeight;
+        const calculated = Number(Math.min(scaleW, scaleH).toFixed(2));
+        setZoomScale(Math.min(2.5, Math.max(0.4, calculated)));
+        return;
+      }
+    }
+    setZoomScale(0.85);
+  };
+
+  // Safe Page Deletion
+  const handleDeletePage = React.useCallback((pageIdx: number) => {
+    if (docState.pages.length <= 1) {
       alert('A document must have at least one page.');
       return;
     }
-    const newPages = docState.pages.map((p: PDFPageInfo, idx: number) => (idx === pageIdx ? { ...p, deleted: true } : p));
+    const newPages = docState.pages
+      .filter((_, idx) => idx !== pageIdx)
+      .map((p: PDFPageInfo, idx: number) => ({ ...p, pageNumber: idx + 1 }));
     pushHistory(newPages);
-    if (currentPageNum > 1 && currentPageNum >= activePagesList.length) {
-      setCurrentPageNum((prev: number) => Math.max(1, prev - 1));
-    }
-  };
+    const newPageNum = Math.min(newPages.length, Math.max(1, pageIdx >= newPages.length ? newPages.length : pageIdx + 1));
+    setCurrentPageNum(newPageNum);
+    setSelectedPageIndices(new Set([newPageNum - 1]));
+    setSelectionAnchorIndex(newPageNum - 1);
+  }, [docState.pages, pushHistory, setSelectedPageIndices, setSelectionAnchorIndex]);
 
+  // Safe Page Duplication
   const handleDuplicatePage = (pageIdx: number) => {
     const target = docState.pages[pageIdx];
     const newPage: PDFPageInfo = {
       ...target,
-      pageNumber: docState.pages.length + 1,
+      pageNumber: pageIdx + 2,
     };
     const newPages = [...docState.pages];
     newPages.splice(pageIdx + 1, 0, newPage);
-    pushHistory(newPages);
+    const renumbered = newPages.map((p, idx) => ({ ...p, pageNumber: idx + 1 }));
+    pushHistory(renumbered);
+    setCurrentPageNum(pageIdx + 2);
+    setSelectedPageIndices(new Set([pageIdx + 1]));
+    setSelectionAnchorIndex(pageIdx + 1);
   };
 
+  // Safe Page Move
   const handleMovePage = (index: number, direction: 'up' | 'down') => {
     const targetIdx = direction === 'up' ? index - 1 : index + 1;
     if (targetIdx < 0 || targetIdx >= docState.pages.length) return;
@@ -388,18 +475,158 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     const temp = newPages[index];
     newPages[index] = newPages[targetIdx];
     newPages[targetIdx] = temp;
-    pushHistory(newPages);
+    const renumbered = newPages.map((p, idx) => ({ ...p, pageNumber: idx + 1 }));
+    pushHistory(renumbered);
     setCurrentPageNum(targetIdx + 1);
+    setSelectedPageIndices(new Set([targetIdx]));
+    setSelectionAnchorIndex(targetIdx);
   };
 
+  // Safe Page Reorder
   const handleReorderPages = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex) return;
     const newPages = [...docState.pages];
     const [moved] = newPages.splice(fromIndex, 1);
     newPages.splice(toIndex, 0, moved);
-    pushHistory(newPages);
+    const renumbered = newPages.map((p, idx) => ({ ...p, pageNumber: idx + 1 }));
+    pushHistory(renumbered);
     setCurrentPageNum(toIndex + 1);
+    setSelectedPageIndices(new Set([toIndex]));
+    setSelectionAnchorIndex(toIndex);
   };
+
+  // Multi-Page Selection Handlers & Anchor Tracking
+  const handlePageClick = (pageNum: number, e?: React.MouseEvent) => {
+    const res = computePageClickSelection(
+      pageNum,
+      e,
+      currentPageNum,
+      selectedPageIndices,
+      selectionAnchorIndex,
+      docState.pages
+    );
+    setSelectedPageIndices(res.selectedIndices);
+    setSelectionAnchorIndex(res.anchorIndex);
+    setCurrentPageNum(res.activePageNum);
+  };
+
+  const handleToggleSelectPage = (
+    index: number,
+    options?: boolean | { shiftKey?: boolean; ctrlKey?: boolean; metaKey?: boolean }
+  ) => {
+    const res = computeToggleSelectPage(
+      index,
+      options,
+      currentPageNum,
+      selectedPageIndices,
+      selectionAnchorIndex,
+      docState.pages
+    );
+    setSelectedPageIndices(res.selectedIndices);
+    setSelectionAnchorIndex(res.anchorIndex);
+    setCurrentPageNum(res.activePageNum);
+  };
+
+  const handleSelectAllPages = React.useCallback(() => {
+    const res = computeSelectAllPages(docState.pages, selectedPageIndices, currentPageNum);
+    setSelectedPageIndices(res.selectedIndices);
+    setSelectionAnchorIndex(res.anchorIndex);
+    setCurrentPageNum(res.activePageNum);
+  }, [docState.pages, selectedPageIndices, currentPageNum]);
+
+  const handleRotateSelectedPages = (delta = 90) => {
+    handleRotatePage(delta);
+  };
+
+  const handleDeleteSelectedPages = React.useCallback(() => {
+    const remainingActivePages = docState.pages.filter(
+      (p, idx) => !p.deleted && !selectedPageIndices.has(idx)
+    );
+    if (remainingActivePages.length === 0) {
+      alert('Cannot delete all active pages. A document must have at least one page.');
+      return;
+    }
+    const minDeletedIndex = Math.min(...selectedPageIndices);
+    const newPages = docState.pages
+      .filter((_, idx) => !selectedPageIndices.has(idx))
+      .map((p, idx) => ({ ...p, pageNumber: idx + 1 }));
+    pushHistory(newPages);
+    const newPageNum = Math.min(newPages.length, Math.max(1, minDeletedIndex + 1));
+    setSelectedPageIndices(new Set([newPageNum - 1]));
+    setSelectionAnchorIndex(newPageNum - 1);
+    setCurrentPageNum(newPageNum);
+  }, [selectedPageIndices, docState.pages, pushHistory, setSelectedPageIndices, setSelectionAnchorIndex]);
+
+  // Global Workspace Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isSigModalOpen || isAiModalOpen || isProcessing) return;
+
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
+        e.preventDefault();
+        setZoomScale((z) => Math.min(2.5, Number((z + 0.15).toFixed(2))));
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '-') {
+        e.preventDefault();
+        setZoomScale((z) => Math.max(0.4, Number((z - 0.15).toFixed(2))));
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '0') {
+        e.preventDefault();
+        setZoomScale(1.0);
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        handleSelectAllPages();
+      } else if (
+        e.key === 'ArrowUp' ||
+        e.key === 'ArrowDown' ||
+        e.key === 'ArrowLeft' ||
+        e.key === 'ArrowRight' ||
+        e.key === 'PageUp' ||
+        e.key === 'PageDown' ||
+        e.key === 'Home' ||
+        e.key === 'End'
+      ) {
+        const nav = computeKeyboardNavigation(
+          e.key,
+          e.shiftKey,
+          currentPageNum,
+          selectedPageIndices,
+          selectionAnchorIndex,
+          docState.pages
+        );
+        if (nav) {
+          e.preventDefault();
+          setSelectedPageIndices(nav.selectedIndices);
+          setSelectionAnchorIndex(nav.anchorIndex);
+          setCurrentPageNum(nav.activePageNum);
+        }
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedPageIndices.size > 1) {
+          e.preventDefault();
+          handleDeleteSelectedPages();
+        } else if (docState.pages.length > 1) {
+          e.preventDefault();
+          handleDeletePage(currentPageNum - 1);
+        }
+      } else if (e.key === 'Escape') {
+        onCloseWorkspace();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo, docState.pages, currentPageNum, isSigModalOpen, isAiModalOpen, isProcessing, onCloseWorkspace, handleDeletePage, handleDeleteSelectedPages, selectedPageIndices, selectionAnchorIndex, handleSelectAllPages]);
 
   // Add Placed Signature
   const handleAddSignature = (sig: SignatureData) => {
@@ -556,6 +783,12 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       } else if (currentToolTab === 'protect-pdf' && protectPassword) {
         setProcessingStatus('Encrypting document with AES-256…');
         finalBytes = await PDFEngineService.encryptDocument(currentBuffer, protectPassword);
+      } else if (currentToolTab === 'metadata-scrubber') {
+        setProcessingStatus('Updating and sanitizing document metadata…');
+        finalBytes = await PDFEngineService.updateMetadata(currentBuffer, metadataFields);
+      } else if (currentToolTab === 'unlock-pdf') {
+        setProcessingStatus('Removing security wrappers and decrypting document…');
+        finalBytes = await PDFEngineService.unlockDocument(currentBuffer, unlockPassword);
       }
 
       setCompletedStats({
@@ -589,7 +822,6 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
     }
   };
 
-  const activePages = docState.pages.filter((p: PDFPageInfo) => !p.deleted);
   const activePage = docState.pages[currentPageNum - 1];
 
   return (
@@ -667,19 +899,53 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
 
           {/* Page Navigator */}
           <button
-            onClick={() => setCurrentPageNum((p) => Math.max(1, p - 1))}
-            disabled={currentPageNum === 1}
+            onClick={() => {
+              const activeIndices = docState.pages
+                .map((p, i) => (!p.deleted ? i : -1))
+                .filter((i) => i >= 0);
+              const currentPos = activeIndices.indexOf(currentPageNum - 1);
+              if (currentPos > 0) {
+                const nextIdx = activeIndices[currentPos - 1];
+                setCurrentPageNum(nextIdx + 1);
+                setSelectedPageIndices(new Set([nextIdx]));
+                setSelectionAnchorIndex(nextIdx);
+              }
+            }}
+            disabled={(() => {
+              const activeIndices = docState.pages.map((p, i) => (!p.deleted ? i : -1)).filter((i) => i >= 0);
+              return activeIndices.indexOf(currentPageNum - 1) <= 0;
+            })()}
             className="btn btn-ghost btn-icon"
             title="Previous Page"
           >
             <ChevronLeft size={16} strokeWidth={1.5} />
           </button>
           <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 600, minWidth: '70px', textAlign: 'center', color: 'var(--text-primary)' }}>
-            {String(currentPageNum).padStart(2, '0')} / {String(activePages.length).padStart(2, '0')}
+            {(() => {
+              const activeIndices = docState.pages.map((p, i) => (!p.deleted ? i : -1)).filter((i) => i >= 0);
+              const currentPos = activeIndices.indexOf(currentPageNum - 1);
+              const displayNum = currentPos >= 0 ? currentPos + 1 : Math.min(currentPageNum, activeIndices.length);
+              return `${String(displayNum).padStart(2, '0')} / ${String(activeIndices.length).padStart(2, '0')}`;
+            })()}
           </span>
           <button
-            onClick={() => setCurrentPageNum((p) => Math.min(activePages.length, p + 1))}
-            disabled={currentPageNum === activePages.length}
+            onClick={() => {
+              const activeIndices = docState.pages
+                .map((p, i) => (!p.deleted ? i : -1))
+                .filter((i) => i >= 0);
+              const currentPos = activeIndices.indexOf(currentPageNum - 1);
+              if (currentPos >= 0 && currentPos < activeIndices.length - 1) {
+                const nextIdx = activeIndices[currentPos + 1];
+                setCurrentPageNum(nextIdx + 1);
+                setSelectedPageIndices(new Set([nextIdx]));
+                setSelectionAnchorIndex(nextIdx);
+              }
+            }}
+            disabled={(() => {
+              const activeIndices = docState.pages.map((p, i) => (!p.deleted ? i : -1)).filter((i) => i >= 0);
+              const currentPos = activeIndices.indexOf(currentPageNum - 1);
+              return currentPos < 0 || currentPos >= activeIndices.length - 1;
+            })()}
             className="btn btn-ghost btn-icon"
             title="Next Page"
           >
@@ -692,35 +958,69 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           <button
             onClick={() => setZoomScale((z) => Math.max(0.4, Number((z - 0.15).toFixed(2))))}
             className="btn btn-ghost btn-icon"
-            title="Zoom Out"
+            title="Zoom Out (Ctrl -)"
+            aria-label="Zoom Out"
           >
             <ZoomOut size={15} strokeWidth={1.5} />
           </button>
-          <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', minWidth: '42px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <button
+            type="button"
+            onClick={() => setZoomScale(1.0)}
+            className="btn btn-ghost btn-sm"
+            style={{ 
+              fontSize: '12px', 
+              fontFamily: 'var(--font-mono)', 
+              minWidth: '46px', 
+              padding: '2px 6px',
+              textAlign: 'center', 
+              color: 'var(--text-secondary)' 
+            }}
+            title="Reset Zoom to 100% (Ctrl 0)"
+            aria-label="Reset Zoom to 100%"
+          >
             {Math.round(zoomScale * 100)}%
-          </span>
+          </button>
           <button
             onClick={() => setZoomScale((z) => Math.min(2.5, Number((z + 0.15).toFixed(2))))}
             className="btn btn-ghost btn-icon"
-            title="Zoom In"
+            title="Zoom In (Ctrl +)"
+            aria-label="Zoom In"
           >
             <ZoomIn size={15} strokeWidth={1.5} />
           </button>
 
+          {/* Fit to Width & Fit to Page */}
+          <button
+            onClick={handleFitToWidth}
+            className="btn btn-ghost btn-icon"
+            title="Fit to Width"
+            aria-label="Fit to Width"
+          >
+            <Maximize2 size={15} strokeWidth={1.5} />
+          </button>
+          <button
+            onClick={handleFitToPage}
+            className="btn btn-ghost btn-icon"
+            title="Fit to Page"
+            aria-label="Fit to Page"
+          >
+            <Minimize2 size={15} strokeWidth={1.5} />
+          </button>
+
           <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)', margin: '0 4px' }} />
 
-          {/* Rotate Current Page */}
+          {/* Rotate Current / Selected Pages */}
           <button
             onClick={() => handleRotatePage(-90)}
             className="btn btn-ghost btn-icon"
-            title="Rotate Left 90°"
+            title={selectedPageIndices.size > 1 ? `Rotate ${selectedPageIndices.size} selected pages left 90°` : "Rotate Left 90°"}
           >
             <RotateCcw size={15} strokeWidth={1.5} />
           </button>
           <button
             onClick={() => handleRotatePage(90)}
             className="btn btn-ghost btn-icon"
-            title="Rotate Right 90°"
+            title={selectedPageIndices.size > 1 ? `Rotate ${selectedPageIndices.size} selected pages right 90°` : "Rotate Right 90°"}
           >
             <RotateCw size={15} strokeWidth={1.5} />
           </button>
@@ -768,24 +1068,35 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         <ThumbnailSidebar
           pages={docState.pages}
           currentPageNum={currentPageNum}
-          onPageClick={(num) => setCurrentPageNum(num)}
+          onPageClick={handlePageClick}
           onMovePage={handleMovePage}
           onDuplicatePage={handleDuplicatePage}
           onDeletePage={handleDeletePage}
           onReorderPages={handleReorderPages}
+          onRotatePage={handleRotateSinglePage}
+          selectedPageIndices={selectedPageIndices}
+          onToggleSelectPage={handleToggleSelectPage}
+          onSelectAllPages={handleSelectAllPages}
+          onRotateSelectedPages={handleRotateSelectedPages}
+          onDeleteSelectedPages={handleDeleteSelectedPages}
+          isCollapsed={isThumbnailCollapsed}
+          onToggleCollapse={() => setIsThumbnailCollapsed((prev) => !prev)}
         />
 
         {/* Center Canvas Workspace */}
-        <main style={{
-          flex: 1,
-          background: 'var(--bg-primary)',
-          overflow: 'auto',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '40px',
-          position: 'relative',
-        }}>
+        <main 
+          ref={mainContainerRef}
+          style={{
+            flex: 1,
+            background: 'var(--bg-primary)',
+            overflow: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '40px',
+            position: 'relative',
+          }}
+        >
           {activePage ? (
             <div style={{
               position: 'relative',
@@ -909,113 +1220,194 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         </main>
 
         {/* Right Contextual Tool Panel */}
-        <aside style={{
-          width: '320px',
-          background: 'var(--bg-card)',
-          borderLeft: '1px solid var(--border-subtle)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflowY: 'auto',
-          flexShrink: 0,
-        }}>
-          {/* Tool Tabs Header with Smart Tool Switcher Dropdown */}
-          <div style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-primary)',
+        {isToolPanelCollapsed ? (
+          <aside
+            aria-label="Tool panel collapsed"
+            style={{
+              width: '40px',
+              background: 'var(--bg-card)',
+              borderLeft: '1px solid var(--border-subtle)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: '12px 4px',
+              gap: '12px',
+              flexShrink: 0,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setIsToolPanelCollapsed(false)}
+              className="btn btn-ghost btn-icon"
+              title="Expand tool settings"
+              aria-label="Expand tool settings"
+              style={{ padding: '6px' }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div style={{
+              writingMode: 'vertical-rl',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.08em',
+              marginTop: '8px',
+            }}>
+              Tool Settings
+            </div>
+          </aside>
+        ) : (
+          <aside style={{
+            width: '320px',
+            background: 'var(--bg-card)',
+            borderLeft: '1px solid var(--border-subtle)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            overflowY: 'auto',
+            flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
-                Active Tool
-              </span>
-              <span className="badge badge-muted" style={{ fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
-                38 Tools Active
-              </span>
-            </div>
+            {/* Tool Tabs Header with Smart Tool Switcher Dropdown */}
+            <div style={{
+              padding: '12px 16px',
+              borderBottom: '1px solid var(--border-subtle)',
+              background: 'var(--bg-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
+                  Active Tool
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="badge badge-muted" style={{ fontSize: '10px', fontFamily: 'var(--font-mono)' }}>
+                    Precision Suite
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsToolPanelCollapsed(true)}
+                    className="btn btn-ghost btn-icon"
+                    style={{ padding: '2px' }}
+                    title="Collapse tool settings"
+                    aria-label="Collapse tool settings"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
 
-            {/* Smart Tool Selector Select Dropdown */}
-            <select
-              value={currentToolTab}
-              onChange={(e) => setCurrentToolTab(e.target.value)}
-              className="select-tool-dropdown"
-              style={{
-                width: '100%',
-                padding: '8px 10px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
+              {/* Smart Tool Selector Select Dropdown */}
+              <select
+                value={
+                  currentToolTab === 'organize' || currentToolTab === 'reorder-pages'
+                    ? 'rearrange-pdf-pages'
+                    : currentToolTab === 'rotate-pdf'
+                    ? 'rotate-pdf-pages'
+                    : currentToolTab === 'remove-pages'
+                    ? 'remove-pdf-pages'
+                    : currentToolTab === 'extract-pages'
+                    ? 'extract-pdf-pages'
+                    : currentToolTab === 'protect-pdf'
+                    ? 'lock-pdf'
+                    : currentToolTab === 'halve-pdf'
+                    ? 'halve-pdf-pages'
+                    : currentToolTab === 'booklet-pdf'
+                    ? 'create-pdf-booklet'
+                    : currentToolTab === 'resize-pdf'
+                    ? 'change-pdf-page-size'
+                    : currentToolTab === 'create-form'
+                    ? 'create-fillable-pdf-form'
+                    : currentToolTab === 'metadata-scrubber'
+                    ? 'remove-pdf-metadata'
+                    : currentToolTab === 'password-generator'
+                    ? 'generate-password'
+                    : currentToolTab === 'web-optimize'
+                    ? 'web-optimize-pdf'
+                    : currentToolTab
+                }
+                onChange={(e) => setCurrentToolTab(e.target.value)}
+                className="select-tool-dropdown"
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
               <optgroup label="Compress & Optimize">
                 <option value="compress-pdf">Compress PDF (Adaptive Engine)</option>
+                <option value="convert-pdf-to-grayscale">Convert PDF to Grayscale</option>
+                <option value="invert-pdf">Invert PDF Colors (Dark Mode)</option>
                 <option value="flatten-pdf">Flatten / Rasterize PDF</option>
                 <option value="repair-pdf">Repair Corrupted PDF</option>
-                <option value="web-optimize">Web Optimize (Linearize)</option>
+                <option value="web-optimize-pdf">Web Optimize (Linearize)</option>
               </optgroup>
 
               <optgroup label="Organize & Layout">
-                <option value="organize">Organize & Reorder Pages</option>
-                <option value="rotate-pdf">Rotate Pages (CW / CCW / 180°)</option>
-                <option value="remove-pages">Remove Pages (Odd / Even / Selection)</option>
-                <option value="extract-pages">Extract Page Ranges</option>
+                <option value="rearrange-pdf-pages">Rearrange & Reorder Pages</option>
+                <option value="rotate-pdf-pages">Rotate Pages (CW / CCW / 180°)</option>
+                <option value="remove-pdf-pages">Remove Pages (Unwanted / Blank)</option>
+                <option value="extract-pdf-pages">Extract Page Ranges</option>
                 <option value="split-pdf">Split PDF</option>
-                <option value="halve-pdf">Halve 2-in-1 Spreads</option>
-                <option value="pages-per-sheet">Pages per Sheet (N-Up)</option>
-                <option value="booklet-pdf">Booklet Creator (Saddle-Stitch)</option>
+                <option value="halve-pdf-pages">Halve 2-in-1 Spreads</option>
+                <option value="pages-per-sheet">Pages per Sheet (N-Up / Poster)</option>
+                <option value="create-pdf-booklet">Booklet Creator (Saddle-Stitch)</option>
                 <option value="alternate-mix">Alternate & Mix 2 PDFs</option>
                 <option value="crop-pdf">Crop Page Margins</option>
-                <option value="resize-pdf">Resize Page Dimensions</option>
-                <option value="remove-blank-pages">Remove Blank Pages</option>
+                <option value="change-pdf-page-size">Change PDF Page Size</option>
+                <option value="straighten-pdf">Straighten Crooked Scans</option>
               </optgroup>
 
               <optgroup label="Edit, Annotate & Sign">
-                <option value="sign-pdf">Sign & Fill Document</option>
-                <option value="watermark-pdf">Watermark PDF</option>
-                <option value="page-numbers">Add Page Numbers</option>
+                <option value="sign-pdf">Sign Document & Verify</option>
+                <option value="edit-pdf">Edit & Write PDF</option>
+                <option value="annotate-pdf">Annotate & Draw</option>
+                <option value="add-watermark">Add Watermark</option>
+                <option value="add-page-numbers">Add Page Numbers</option>
                 <option value="overlay-pdf">Overlay Letterhead / Underlay</option>
-                <option value="qr-code-pdf">Add Dynamic QR Code</option>
-                <option value="create-form">Add Interactive Form Fields</option>
+                <option value="generate-qr-code">Add Dynamic QR Code</option>
+                <option value="create-fillable-pdf-form">Add Interactive Form Fields</option>
               </optgroup>
 
               <optgroup label="Security & Privacy">
-                <option value="protect-pdf">Protect with Password</option>
+                <option value="lock-pdf">Protect with Password</option>
                 <option value="unlock-pdf">Unlock & Remove Password</option>
-                <option value="redact-pdf">Redact & Blackout</option>
-                <option value="metadata-scrubber">Sanitize Document Metadata</option>
-                <option value="password-generator">Password Generator</option>
+                <option value="redact-pdf">Redact & Blackout Content</option>
+                <option value="remove-pdf-metadata">Sanitize Metadata & Doc Info</option>
+                <option value="generate-password">Password Generator</option>
               </optgroup>
 
               <optgroup label="Convert & Extract">
-                <option value="extract-text">Extract Full Text (.txt)</option>
-                <option value="pdf-to-word">PDF to Word (.doc)</option>
-                <option value="pdf-to-excel">PDF to Excel / CSV</option>
+                <option value="pdf-to-txt">Extract Text (.txt / .md / .html)</option>
+                <option value="pdf-to-word">PDF to Word / Office (.doc / .odt / .rtf)</option>
+                <option value="pdf-to-excel">PDF to Excel / CSV (.xlsx / .csv)</option>
+                <option value="pdf-to-powerpoint">PDF to PowerPoint (.pptx)</option>
                 <option value="extract-images">Extract Images to ZIP</option>
-                <option value="pdf-to-images">Convert Pages to Images (ZIP)</option>
+                <option value="pdf-to-images">Convert Pages to Images (.jpg / .png / .svg)</option>
                 <option value="pdf-to-pdfa">PDF to PDF/A Archival</option>
               </optgroup>
 
               <optgroup label="OCR, View & AI">
-                <option value="ocr-pdf">Local OCR Recognition</option>
-                <option value="view-pdf">Fullscreen PDF Reader</option>
-                <option value="ai-chat">AI Document Studio</option>
+                <option value="ocr-pdf">Local OCR & Copy Text</option>
+                <option value="view-pdf">Fullscreen PDF Reader & Print</option>
+                <option value="ai-chat">AI Document Studio & Search</option>
               </optgroup>
             </select>
           </div>
 
           {/* Contextual Controls */}
           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-            {currentToolTab === 'compress-pdf' && (
+            {(currentToolTab === 'compress-pdf' || currentToolTab === 'convert-pdf-to-grayscale' || currentToolTab === 'invert-pdf') && (
               <CompressTool
                 compressionPreset={compressionPreset}
                 onPresetChange={(p) => setCompressionPreset(p)}
-                compressionGrayscale={compressionGrayscale}
+                compressionGrayscale={compressionGrayscale || currentToolTab === 'convert-pdf-to-grayscale'}
                 onGrayscaleChange={(v) => setCompressionGrayscale(v)}
                 compressionDpi={compressionDpi}
                 onDpiChange={(dpi) => setCompressionDpi(dpi)}
@@ -1026,21 +1418,21 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'rotate-pdf' && (
+            {(currentToolTab === 'rotate-pdf' || currentToolTab === 'rotate-pdf-pages') && (
               <RotateTool
                 pages={docState.pages}
                 onUpdatePages={(newPages) => pushHistory(newPages)}
               />
             )}
 
-            {currentToolTab === 'remove-pages' && (
+            {(currentToolTab === 'remove-pages' || currentToolTab === 'remove-pdf-pages' || currentToolTab === 'remove-blank-pages') && (
               <RemovePagesTool
                 pages={docState.pages}
                 onUpdatePages={(newPages) => pushHistory(newPages)}
               />
             )}
 
-            {currentToolTab === 'extract-pages' && (
+            {(currentToolTab === 'extract-pages' || currentToolTab === 'extract-pdf-pages') && (
               <ExtractPagesTool
                 docState={docState}
                 extractRangeText={extractRangeText}
@@ -1062,7 +1454,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'sign-pdf' && (
+            {(currentToolTab === 'sign-pdf' || currentToolTab === 'fill-out-pdf' || currentToolTab === 'verify-pdf-signatures') && (
               <SignTool
                 placedSignatures={placedSignatures}
                 onOpenSignatureModal={() => setIsSigModalOpen(true)}
@@ -1076,7 +1468,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'protect-pdf' && (
+            {(currentToolTab === 'protect-pdf' || currentToolTab === 'lock-pdf') && (
               <ProtectTool
                 protectPassword={protectPassword}
                 onPasswordChange={(pw) => setProtectPassword(pw)}
@@ -1089,10 +1481,12 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               <UnlockTool
                 isProcessing={isProcessing}
                 onProcess={handleExportPDF}
+                password={unlockPassword}
+                onPasswordChange={(pw) => setUnlockPassword(pw)}
               />
             )}
 
-            {currentToolTab === 'watermark-pdf' && (
+            {(currentToolTab === 'watermark-pdf' || currentToolTab === 'add-watermark') && (
               <WatermarkTool
                 watermarkSettings={watermarkSettings}
                 onWatermarkSettingsChange={(s) => setWatermarkSettings(s)}
@@ -1101,7 +1495,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'page-numbers' && (
+            {(currentToolTab === 'page-numbers' || currentToolTab === 'add-page-numbers') && (
               <PageNumbersTool
                 pageNumberSettings={pageNumberSettings}
                 onPageNumberSettingsChange={(s) => setPageNumberSettings(s)}
@@ -1110,7 +1504,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'qr-code-pdf' && (
+            {(currentToolTab === 'qr-code-pdf' || currentToolTab === 'generate-qr-code') && (
               <QRCodeTool
                 qrSettings={qrSettings}
                 onQrSettingsChange={(s) => setQrSettings(s)}
@@ -1119,7 +1513,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'create-form' && (
+            {(currentToolTab === 'create-form' || currentToolTab === 'create-fillable-pdf-form' || currentToolTab === 'make-pdf-fillable') && (
               <CreateFormTool
                 docState={docState}
                 currentPageNum={currentPageNum}
@@ -1132,7 +1526,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'extract-text' && (
+            {(currentToolTab === 'extract-text' || currentToolTab === 'pdf-to-txt' || currentToolTab === 'copy-from-pdf' || currentToolTab === 'pdf-to-markdown' || currentToolTab === 'pdf-to-html' || currentToolTab === 'pdf-to-epub') && (
               <ExtractTextTool
                 docState={docState}
                 extractedDocText={extractedDocText || fullDocumentText}
@@ -1143,7 +1537,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'pdf-to-word' && (
+            {(currentToolTab === 'pdf-to-word' || currentToolTab === 'pdf-to-docx' || currentToolTab === 'pdf-to-rtf' || currentToolTab === 'pdf-to-odt' || currentToolTab === 'pdf-to-powerpoint' || currentToolTab === 'pdf-to-pptx' || currentToolTab === 'pdf-to-odp' || currentToolTab === 'convert-from-pdf') && (
               <PdfToWordTool
                 docState={docState}
                 isProcessing={isProcessing}
@@ -1152,7 +1546,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'pdf-to-images' && (
+            {(currentToolTab === 'pdf-to-images' || currentToolTab === 'pdf-to-jpg' || currentToolTab === 'pdf-to-png' || currentToolTab === 'pdf-to-svg' || currentToolTab === 'pdf-to-tiff') && (
               <PdfToImagesTool
                 docState={docState}
                 pdfImagesFormat={pdfImagesFormat}
@@ -1163,14 +1557,14 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'pdf-to-pdfa' && (
+            {(currentToolTab === 'pdf-to-pdfa' || currentToolTab === 'validate-pdfa') && (
               <PdfToPdfATool
                 isProcessing={isProcessing}
                 onProcess={handleExportPDF}
               />
             )}
 
-            {currentToolTab === 'flatten-pdf' && (
+            {(currentToolTab === 'flatten-pdf' || currentToolTab === 'rasterize-pdf') && (
               <FlattenTool
                 flattenDpi={flattenDpi}
                 onFlattenDpiChange={(dpi) => setFlattenDpi(dpi)}
@@ -1186,7 +1580,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'web-optimize' && (
+            {(currentToolTab === 'web-optimize' || currentToolTab === 'web-optimize-pdf') && (
               <WebOptimizeTool
                 isProcessing={isProcessing}
                 onProcess={handleExportPDF}
@@ -1215,7 +1609,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'password-generator' && (
+            {(currentToolTab === 'password-generator' || currentToolTab === 'generate-password') && (
               <PasswordGeneratorTool
                 genPassVal={genPassVal}
                 onGenPassValChange={(v) => setGenPassVal(v)}
@@ -1226,7 +1620,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'view-pdf' && (
+            {(currentToolTab === 'view-pdf' || currentToolTab === 'pdf-reader' || currentToolTab === 'print-pdf') && (
               <ViewPdfTool
                 docState={docState}
                 zoomScale={zoomScale}
@@ -1234,7 +1628,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'ai-chat' && (
+            {(currentToolTab === 'ai-chat' || currentToolTab === 'search-pdf') && (
               <AiChatTool
                 docState={docState}
                 fullDocumentText={fullDocumentText}
@@ -1254,14 +1648,14 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'metadata-scrubber' && (
+            {(currentToolTab === 'metadata-scrubber' || currentToolTab === 'remove-pdf-metadata' || currentToolTab === 'change-pdf-doc-info' || currentToolTab === 'analyze-pdf' || currentToolTab === 'set-pdf-viewer-preferences' || currentToolTab === 'bookmark-pdf') && (
               <MetadataTool
                 metadataFields={metadataFields}
                 onMetadataFieldsChange={(fields) => setMetadataFields(fields)}
               />
             )}
 
-            {currentToolTab === 'halve-pdf' && (
+            {(currentToolTab === 'halve-pdf' || currentToolTab === 'halve-pdf-pages') && (
               <HalveTool
                 pages={docState.pages}
                 isProcessing={isProcessing}
@@ -1269,7 +1663,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'pages-per-sheet' && (
+            {(currentToolTab === 'pages-per-sheet' || currentToolTab === 'print-pdf-as-poster') && (
               <NUpTool
                 nUpSettings={nUpSettings}
                 onNUpSettingsChange={(s) => setNUpSettings(s)}
@@ -1278,7 +1672,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'booklet-pdf' && (
+            {(currentToolTab === 'booklet-pdf' || currentToolTab === 'create-pdf-booklet') && (
               <BookletTool
                 pages={docState.pages}
                 isProcessing={isProcessing}
@@ -1295,7 +1689,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'resize-pdf' && (
+            {(currentToolTab === 'resize-pdf' || currentToolTab === 'change-pdf-page-size') && (
               <ResizeTool
                 resizeSettings={resizeSettings}
                 onResizeSettingsChange={(s) => setResizeSettings(s)}
@@ -1320,7 +1714,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'pdf-to-excel' && (
+            {(currentToolTab === 'pdf-to-excel' || currentToolTab === 'pdf-to-xlsx' || currentToolTab === 'pdf-to-ods') && (
               <PdfToExcelTool
                 docState={docState}
                 extractedCsvText={extractedCsvText}
@@ -1331,7 +1725,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {currentToolTab === 'annotate-pdf' && (
+            {(currentToolTab === 'annotate-pdf' || currentToolTab === 'edit-pdf' || currentToolTab === 'write-pdf') && (
               <AnnotateTool
                 annotationMode={annotationMode}
                 onAnnotationModeChange={(m) => setAnnotationMode(m)}
@@ -1345,14 +1739,132 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               />
             )}
 
-            {(currentToolTab === 'organize' || currentToolTab === 'reorder-pages' || !currentToolTab) && (
+            {(currentToolTab === 'organize' || currentToolTab === 'reorder-pages' || currentToolTab === 'rearrange-pdf-pages' || currentToolTab === 'straighten-pdf' || !currentToolTab) && (
               <OrganizeTool
                 isProcessing={isProcessing}
                 onProcess={handleExportPDF}
               />
             )}
+
+            {/* Standardized Fallback Tool Panel for Unhandled Tool IDs */}
+            {(() => {
+              const handledTools = [
+                'compress-pdf', 'convert-pdf-to-grayscale', 'invert-pdf',
+                'rotate-pdf', 'rotate-pdf-pages',
+                'remove-pages', 'remove-pdf-pages', 'remove-blank-pages',
+                'extract-pages', 'extract-pdf-pages',
+                'split-pdf',
+                'sign-pdf', 'fill-out-pdf', 'verify-pdf-signatures',
+                'redact-pdf',
+                'protect-pdf', 'lock-pdf',
+                'unlock-pdf',
+                'watermark-pdf', 'add-watermark',
+                'page-numbers', 'add-page-numbers',
+                'qr-code-pdf', 'generate-qr-code',
+                'create-form', 'create-fillable-pdf-form', 'make-pdf-fillable',
+                'extract-text', 'pdf-to-txt', 'copy-from-pdf', 'pdf-to-markdown', 'pdf-to-html', 'pdf-to-epub',
+                'pdf-to-word', 'pdf-to-docx', 'pdf-to-rtf', 'pdf-to-odt', 'pdf-to-powerpoint', 'pdf-to-pptx', 'pdf-to-odp', 'convert-from-pdf',
+                'pdf-to-images', 'pdf-to-jpg', 'pdf-to-png', 'pdf-to-svg', 'pdf-to-tiff',
+                'pdf-to-pdfa', 'validate-pdfa',
+                'flatten-pdf', 'rasterize-pdf',
+                'repair-pdf',
+                'web-optimize', 'web-optimize-pdf',
+                'overlay-pdf',
+                'alternate-mix',
+                'password-generator', 'generate-password',
+                'view-pdf', 'pdf-reader', 'print-pdf',
+                'ai-chat', 'search-pdf',
+                'ocr-pdf',
+                'metadata-scrubber', 'remove-pdf-metadata', 'change-pdf-doc-info', 'analyze-pdf', 'set-pdf-viewer-preferences', 'bookmark-pdf',
+                'halve-pdf', 'halve-pdf-pages',
+                'pages-per-sheet', 'print-pdf-as-poster',
+                'booklet-pdf', 'create-pdf-booklet',
+                'crop-pdf',
+                'resize-pdf', 'change-pdf-page-size',
+                'extract-images',
+                'pdf-to-excel', 'pdf-to-xlsx', 'pdf-to-ods',
+                'annotate-pdf', 'edit-pdf', 'write-pdf',
+                'organize', 'reorder-pages', 'rearrange-pdf-pages', 'straighten-pdf'
+              ];
+              if (handledTools.includes(currentToolTab)) return null;
+
+              const toolMeta = TOOLS_REGISTRY.find((t) => t.id === currentToolTab) || {
+                id: currentToolTab,
+                name: 'Precision PDF Utility',
+                description: 'Process, transform, and export this document with local WebAssembly execution.',
+                category: 'organize'
+              };
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--accent-primary)',
+                    }}>
+                      <FileText size={16} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                        {toolMeta.name}
+                      </h4>
+                      <span className="badge badge-muted" style={{ fontSize: '10px', marginTop: '2px' }}>
+                        {CATEGORY_LABELS[toolMeta.category] || toolMeta.category}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                    {toolMeta.description}
+                  </p>
+
+                  <div className="glass-card" style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', background: 'var(--bg-primary)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em', marginBottom: '8px' }}>
+                      Document Parameters
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Pages:</span>{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>{docState.pages.length}</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Size:</span>{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>{(docState.size / (1024 * 1024)).toFixed(2)} MB</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Format:</span>{' '}
+                        <strong style={{ color: 'var(--text-primary)' }}>PDF 1.7</strong>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>Execution:</span>{' '}
+                        <strong style={{ color: 'var(--success)' }}>100% In-Memory</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    disabled={isProcessing}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%', marginTop: '6px' }}
+                  >
+                    <Download size={14} />
+                    <span>Apply & Export PDF</span>
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </aside>
+        )}
       </div>
 
       {/* 3. Bottom Action Bar & Result Download Prompt */}
@@ -1420,6 +1932,43 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         </div>
       )}
 
+      {/* 4. Desktop Status Bar */}
+      <footer className="workspace-status-bar" role="status" aria-label="Document status bar">
+        {/* Left: Status & Dimensions */}
+        <div className="status-item">
+          <span className={`status-dot ${isProcessing ? 'busy' : ''}`} />
+          <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+            {isProcessing ? processingStatus || 'Processing…' : 'Ready'}
+          </span>
+          <span style={{ color: 'var(--border-strong)', margin: '0 4px' }}>|</span>
+          {activePage && (
+            <span>
+              {Math.round(activePage.width)} × {Math.round(activePage.height)} pt ({(activePage.width / 72).toFixed(1)}" × {(activePage.height / 72).toFixed(1)}")
+            </span>
+          )}
+        </div>
+
+        {/* Center: Engine & Security Info */}
+        <div className="status-item" style={{ fontFamily: 'var(--font-mono)', fontSize: '10.5px' }}>
+          <span>WASM Engine • 0B Telemetry • In-Memory Client Execution</span>
+        </div>
+
+        {/* Right: Page Stepper & Zoom Indicator */}
+        <div className="status-item" style={{ gap: '10px' }}>
+          <span>
+            Page {currentPageNum} of {docState.pages.length}
+            {selectedPageIndices.size > 1 ? ` (${selectedPageIndices.size} selected)` : ''}
+          </span>
+          <span style={{ color: 'var(--border-strong)' }}>|</span>
+          <span style={{ fontFamily: 'var(--font-mono)' }}>
+            {Math.round(zoomScale * 100)}%
+          </span>
+          <span className="badge badge-privacy" style={{ fontSize: '10px', padding: '1px 5px' }}>
+            100% Local
+          </span>
+        </div>
+      </footer>
+
       {/* Signature Modal */}
       <SignatureModal
         isOpen={isSigModalOpen}
@@ -1441,7 +1990,11 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             : docState.pages.map((p: PDFPageInfo) => ({ pageNumber: p.pageNumber, text: `Page ${p.pageNumber}` }))
         }
         isTextLoading={isExtractingText}
-        onNavigateToPage={(num: number) => setCurrentPageNum(num)}
+        onNavigateToPage={(num: number) => {
+          setCurrentPageNum(num);
+          setSelectedPageIndices(new Set([num - 1]));
+          setSelectionAnchorIndex(num - 1);
+        }}
       />
     </div>
   );

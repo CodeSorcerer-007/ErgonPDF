@@ -43,7 +43,9 @@ import {
   Archive,
   KeyRound,
   Eye,
-  ArrowRight
+  ArrowRight,
+  Printer,
+  X
 } from 'lucide-react';
 import { TOOLS_REGISTRY, CATEGORY_LABELS } from '../config/toolsRegistry';
 import type { PDFTool } from '../types/pdf';
@@ -52,6 +54,7 @@ interface ToolsGridProps {
   onSelectTool: (toolId: string) => void;
   favorites: string[];
   onToggleFavorite: (toolId: string) => void;
+  showPriorityShelf?: boolean;
 }
 
 // Icon mapper with unified 1.5px stroke
@@ -97,6 +100,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Archive,
   KeyRound,
   Eye,
+  Printer,
 };
 
 // Intent Section Grouping definitions
@@ -143,6 +147,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
   onSelectTool,
   favorites,
   onToggleFavorite,
+  showPriorityShelf = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchFilter, setSearchFilter] = useState('');
@@ -150,7 +155,12 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
   const categories = Object.keys(CATEGORY_LABELS);
 
   const filteredTools = TOOLS_REGISTRY.filter((tool) => {
-    const matchesCategory = selectedCategory === 'all' || tool.category === selectedCategory;
+    const matchesCategory = 
+      selectedCategory === 'all' 
+        ? true 
+        : selectedCategory === 'favorites' 
+        ? favorites.includes(tool.id) 
+        : tool.category === selectedCategory;
     const matchesSearch = 
       !searchFilter.trim() ||
       tool.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -158,6 +168,8 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
       tool.intents.some((i) => i.toLowerCase().includes(searchFilter.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
+
+  const popularTools = TOOLS_REGISTRY.filter((tool) => tool.popular);
 
   // Render a single tool card with Warm Swiss Monochromatic aesthetics
   const renderToolCard = (tool: PDFTool) => {
@@ -177,7 +189,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           }
         }}
         onClick={() => onSelectTool(tool.id)}
-        className="glass-card"
+        className={`tool-card ${tool.popular ? 'tool-card-popular' : ''}`}
         style={{
           padding: '18px 20px',
           display: 'flex',
@@ -187,7 +199,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           position: 'relative',
           borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-subtle)',
-          background: 'var(--bg-secondary)',
+          background: 'var(--bg-card)',
         }}
       >
         <div>
@@ -214,7 +226,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {tool.badge && (
-                <span className="badge" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                <span className={`badge ${tool.badge === 'Popular' ? 'badge-accent' : ''}`} style={{ fontSize: '10px', padding: '1px 6px' }}>
                   {tool.badge}
                 </span>
               )}
@@ -315,7 +327,7 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
             Document Tools Directory
           </h2>
           <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)' }}>
-            43 precision utilities organized by operational workflow.
+            {TOOLS_REGISTRY.length} precision utilities organized by operational workflow.
           </p>
         </div>
 
@@ -329,12 +341,12 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           borderRadius: 'var(--radius-md)',
           padding: '6px 12px',
           width: '100%',
-          maxWidth: '260px',
+          maxWidth: '280px',
         }}>
-          <Search size={14} color="var(--text-muted)" />
+          <Search size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
           <input 
             type="text"
-            placeholder="Search all 43 tools…"
+            placeholder={`Search all ${TOOLS_REGISTRY.length} tools…`}
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
             aria-label="Search all tools"
@@ -347,6 +359,17 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
               width: '100%',
             }}
           />
+          {searchFilter && (
+            <button
+              type="button"
+              onClick={() => setSearchFilter('')}
+              className="btn btn-ghost btn-icon"
+              style={{ padding: '2px', color: 'var(--text-muted)' }}
+              aria-label="Clear tool search"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -360,6 +383,27 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
         marginBottom: '32px',
         scrollbarWidth: 'none',
       }}>
+        {favorites.length > 0 && (
+          <button
+            onClick={() => setSelectedCategory('favorites')}
+            className="btn btn-sm"
+            style={{
+              borderRadius: 'var(--radius-sm)',
+              padding: '4px 12px',
+              background: selectedCategory === 'favorites' ? 'var(--text-primary)' : 'var(--bg-secondary)',
+              color: selectedCategory === 'favorites' ? 'var(--bg-primary)' : 'var(--accent-primary)',
+              border: '1px solid ' + (selectedCategory === 'favorites' ? 'var(--text-primary)' : 'var(--border-subtle)'),
+              fontSize: '12px',
+              fontWeight: selectedCategory === 'favorites' ? 600 : 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+            }}
+          >
+            <Star size={12} fill="currentColor" />
+            <span>Favorites ({favorites.length})</span>
+          </button>
+        )}
         {categories.map((catKey) => {
           const isActive = selectedCategory === catKey;
           return (
@@ -383,8 +427,34 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
         })}
       </div>
 
-      {/* If filtering by search or specific category: flat grid */}
-      {(selectedCategory !== 'all' || searchFilter.trim()) ? (
+      {/* Empty State */}
+      {filteredTools.length === 0 ? (
+        <div style={{
+          padding: '48px 24px',
+          textAlign: 'center',
+          background: 'var(--bg-secondary)',
+          border: '1px dashed var(--border-medium)',
+          borderRadius: 'var(--radius-lg)',
+        }}>
+          <p style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+            No tools found
+          </p>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+            {selectedCategory === 'favorites' 
+              ? 'You have not favorited any tools yet. Click the star icon on any tool card to save it here.'
+              : `No tools match "${searchFilter}". Try searching with terms like "merge", "compress", or "word".`}
+          </p>
+          {(searchFilter || selectedCategory !== 'all') && (
+            <button 
+              onClick={() => { setSearchFilter(''); setSelectedCategory('all'); }}
+              className="btn btn-secondary btn-sm"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      ) : (selectedCategory !== 'all' || searchFilter.trim()) ? (
+        /* Flat Grid for Filtered / Searched View */
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
@@ -393,8 +463,47 @@ export const ToolsGrid: React.FC<ToolsGridProps> = ({
           {filteredTools.map(renderToolCard)}
         </div>
       ) : (
-        /* Semantic Groups by Intent (Default View) */
+        /* Semantic Groups by Intent (Default View) with Priority Shelf */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
+          {/* Frequently Used / Popular Shelf */}
+          {showPriorityShelf && popularTools.length > 0 && (
+            <div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--border-subtle)',
+                paddingBottom: '10px',
+                marginBottom: '18px',
+              }}>
+                <div>
+                  <h3 style={{
+                    fontSize: '22px',
+                    fontFamily: 'var(--font-serif)',
+                    fontWeight: 400,
+                    color: 'var(--text-primary)',
+                    letterSpacing: '-0.01em',
+                  }}>
+                    Frequently Used Tools
+                  </h3>
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
+                    High-frequency operations for rapid document handling.
+                  </p>
+                </div>
+                <span className="badge badge-accent" style={{ fontSize: '11px' }}>
+                  ★ Most Popular
+                </span>
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: '16px',
+              }}>
+                {popularTools.slice(0, 8).map(renderToolCard)}
+              </div>
+            </div>
+          )}
+
           {INTENT_GROUPS.map((group) => {
             const groupTools = filteredTools.filter((t) => group.categoryIds.includes(t.category));
             if (groupTools.length === 0) return null;

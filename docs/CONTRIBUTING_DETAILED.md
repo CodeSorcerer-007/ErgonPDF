@@ -94,10 +94,10 @@ npm run build
 # Fast linter audit
 npm run lint
 
-# Feature integrity suite (validates 20 core PDF engine operations)
+# Feature integrity suite (validates 25 core PDF engine operations)
 npm run test-features
 
-# Full 85-point smoke test (validates all 43 tools, UI routes, and health probes)
+# Full 168-point smoke test (validates all 126 tools, UI routes, and health probes)
 npm run smoke-test
 ```
 

@@ -602,7 +602,7 @@ async function runSmokeTest() {
   }
 
   // -------------------------------------------------------------------------
-  // Phase 3: Registered Tools Registry Audit (43 UI Tool Routes)
+  // Phase 3: Registered Tools Registry Audit (All UI Tool Routes)
   // -------------------------------------------------------------------------
   console.log('\n--- Phase 3: Registered UI Tool Handlers & Registry Audit ---');
 
@@ -627,7 +627,7 @@ async function runSmokeTest() {
     });
   }
 
-  console.log(`  Audited all ${TOOLS_REGISTRY.length} registered tools across 9 categories. All 43 tools verified reachable.`);
+  console.log(`  Audited all ${TOOLS_REGISTRY.length} registered tools across 9 categories. All ${TOOLS_REGISTRY.length} tools verified reachable.`);
 
   // -------------------------------------------------------------------------
   // Print Formatted Report Table

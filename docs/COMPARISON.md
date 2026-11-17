@@ -11,7 +11,7 @@
 | **License & Pricing** | **Free & MIT Open Source** | Freemium ($84/yr) | Freemium ($108/yr) | Paid ($239.88/yr) | Free Proprietary | Freemium ($60/yr) | Free (GPLv3) |
 | **Processing Location** | **100% Client-Side** | Cloud Server | Cloud Server | Local / Cloud Sync | Local Desktop | Cloud Server | Self-Hosted Server |
 | **File Upload Required?** | ❌ **Never** | ✅ Yes | ✅ Yes | ⚠️ Cloud features | ❌ No | ✅ Yes | ⚠️ Upload to Docker |
-| **Total Tool Count** | **43 Tools** | ~25 Tools | ~21 Tools | ~30 Tools | ~28 Tools | ~30 Tools | ~45 Tools |
+| **Total Tool Count** | **126 Tools** | 31 Tools | ~21 Tools | ~30 Tools | 124 Tools | ~30 Tools | ~45 Tools |
 | **Offline Operation** | ✅ **Full Offline** | ❌ No (Web) | ❌ No (Web) | ✅ Yes | ✅ Yes | ⚠️ Paid Desktop | ⚠️ Local Docker |
 | **No Account / Login Needed** | ✅ **Always Free** | ⚠️ File limits | ⚠️ File limits | ❌ Subscription required | ✅ Yes | ⚠️ 3 tasks/hour | ✅ Yes |
 | **Windows Desktop Installer** | ✅ **1-Click .bat** | ⚠️ Desktop (Paid) | ⚠️ Desktop (Paid) | ✅ Native Win32 | ✅ Windows EXE | ⚠️ Desktop (Paid) | ❌ Requires Docker |
@@ -36,7 +36,7 @@ Cloud PDF editors require you to push your confidential PDF through an internet 
 Adobe Acrobat Pro is the legacy commercial benchmark for PDF manipulation:
 - **Cost**: Adobe charges over $200 annually per seat, locking enterprises and individual professionals into persistent recurring subscription costs.
 - **Resource Heaviness**: Adobe's installer bloats to several gigabytes on disk, installs multiple persistent background update services, and forces Adobe Creative Cloud synchronizations.
-- **ErgonPDF Advantage**: ErgonPDF offers a clean, zero-bloat environment covering the essential 43 PDF workflows—merge, split, crop, booklet, redact, watermark, OCR, sign, compress—without subscription fees, user accounts, or proprietary lock-in.
+- **ErgonPDF Advantage**: ErgonPDF offers a clean, zero-bloat environment covering all 126 PDF workflows (100% PDF24 parity + local AI Studio + scanner duplex mix)—merge, split, crop, booklet, redact, watermark, OCR, sign, compress—without subscription fees, user accounts, or proprietary lock-in.
 
 ### C. ErgonPDF vs. Stirling-PDF
 Stirling-PDF is another popular open-source PDF suite:
@@ -62,4 +62,4 @@ For an individual professional or a 20-person legal or engineering team:
 1. **Maximum Confidentiality**: Zero bytes leave your machine.
 2. **Zero Recurring Overhead**: Truly free and open source under the MIT License.
 3. **Frictionless Windows Deployment**: Double-click `install-ergonpdf.bat` and run in seconds.
-4. **Comprehensive Tool Suite**: 43 tools covering organizational, security, creation, and conversion tasks.
+4. **Comprehensive Tool Suite**: 126 tools covering organizational, security, creation, and conversion tasks.

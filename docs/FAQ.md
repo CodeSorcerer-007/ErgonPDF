@@ -7,7 +7,7 @@
 ### General & Privacy
 
 #### 1. What is ErgonPDF?
-ErgonPDF is a comprehensive, open-source PDF workspace featuring 43 professional tools. It performs page reorganization, digital signing, redaction, watermarking, format conversions, OCR, compression, and repairs directly within your local machine.
+ErgonPDF is a comprehensive, open-source PDF workspace featuring 126 professional tools (100% PDF24 feature parity plus local AI Studio and duplex scanning). It performs page reorganization, digital signing, permanent vector redaction, watermarking, format conversions, OCR, compression, electronic invoicing, and repairs directly within your local machine.
 
 #### 2. How does ErgonPDF differ from cloud tools like ILovePDF or SmallPDF?
 Traditional online tools upload your files over the public internet to their remote cloud servers, process them there, and have you download the result. This exposes sensitive data to server storage, network interception, and compliance risks.
@@ -35,7 +35,7 @@ Yes. The installer uses Node.js (version 18 or later) to host the lightweight lo
 
 #### 7. How do I stop or uninstall the local server?
 - To stop the local background server: run `installer\stop-ergonpdf.bat`.
-- To completely uninstall: run `installer\uninstall.bat`. This removes Desktop and Start Menu shortcuts and cleans up runtime state files.
+- To completely uninstall: run `installer\uninstall-ergonpdf.bat` (or `installer\uninstall.bat`). This removes Desktop and Start Menu shortcuts and cleans up runtime state files.
 
 ---
 

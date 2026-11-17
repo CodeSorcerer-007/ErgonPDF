@@ -1,0 +1,41 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: ErgonPDF.ErgonPDF
+PackageVersion: 1.2.0
+PackageLocale: en-US
+Publisher: CodeSorcerer
+PublisherUrl: https://github.com/CodeSorcerer-007
+PublisherSupportUrl: https://github.com/CodeSorcerer-007/ErgonPDF/issues
+PrivacyUrl: https://github.com/CodeSorcerer-007/ErgonPDF/blob/main/docs/PRIVACY.md
+Author: ErgonPDF Contributors
+PackageName: ErgonPDF
+PackageUrl: https://github.com/CodeSorcerer-007/ErgonPDF
+License: MIT
+LicenseUrl: https://github.com/CodeSorcerer-007/ErgonPDF/blob/main/LICENSE
+Copyright: Copyright (c) 2026 ErgonPDF Contributors
+ShortDescription: The Open-Source, Privacy-First All-in-One PDF Workspace (100% In-Browser WASM)
+Description: |-
+  ErgonPDF is a sovereign, privacy-first all-in-one PDF workspace and document processing suite.
+  Operating with 100% feature parity against PDF24, ErgonPDF processes all merges, splits, compressions,
+  redactions, digital signatures, OCR, and heuristic document queries strictly inside local browser memory
+  using WebAssembly and WebCrypto. Zero document bytes or telemetry ever leave the host machine.
+Moniker: ergonpdf
+Tags:
+  - pdf
+  - pdf-tools
+  - privacy
+  - security
+  - webassembly
+  - ocr
+  - offline
+  - open-source
+ReleaseNotes: |-
+  ErgonPDF v1.2.0 Release Highlights:
+  - 100% feature parity across 126 PDF tools (PDF24 parity + digital signatures)
+  - Full client-side execution via WebAssembly and WebCrypto (Zero cloud telemetry)
+  - Sub-10ms mean engine operation latency (inspect, split, merge, stamp, compress)
+  - Windows 1-click desktop deployment with local loopback daemon (127.0.0.1:8074)
+  - Comprehensive 4-tier automated test suite: linting, 25-feature engine integrity, and 168-point smoke test
+ReleaseNotesUrl: https://github.com/CodeSorcerer-007/ErgonPDF/releases/tag/v1.2.0
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

@@ -34,7 +34,7 @@ App.tsx (Root Controller & Modal Dispatcher)
 ├── Main Viewport
 │   ├── [State: No Active Document]
 │   │   ├── HeroDropzone (Drag-and-Drop Ingestion, Native File Dialog, Quick Actions)
-│   │   └── ToolsGrid (Categorized 43-Tool Directory, Favorites, Filter Input)
+│   │   └── ToolsGrid (Categorized 126-Tool Directory, Favorites, Filter Input)
 │   └── [State: Active Document Loaded]
 │       └── UniversalWorkspace (Document Studio & Editing Controller)
 │           ├── ThumbnailSidebar (Native Drag-and-Drop Page Reordering, Duplication, Deletion)

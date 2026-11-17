@@ -1,0 +1,31 @@
+Windows Registry Editor Version 5.00
+
+; ==============================================================================
+; ErgonPDF — Windows Explorer Context Menu Registration (Per-User HKCU)
+; Safe, non-destructive, requires NO Administrator privileges.
+; Clean rollback script available at: scripts/unregister-context-menu.reg
+; ==============================================================================
+
+; 1. Right-click on any PDF Document (*.pdf) in Windows Explorer
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\ErgonPDF]
+@="Open in ErgonPDF Workspace"
+"Icon"="\"%LOCALAPPDATA%\\ErgonPDF\\icon.ico\""
+
+[HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\ErgonPDF\command]
+@="\"%LOCALAPPDATA%\\ErgonPDF\\ErgonPDF.bat\""
+
+; 2. Right-click on any Directory (Folder) in Windows Explorer
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\ErgonPDF]
+@="Open ErgonPDF Workspace"
+"Icon"="\"%LOCALAPPDATA%\\ErgonPDF\\icon.ico\""
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\ErgonPDF\command]
+@="\"%LOCALAPPDATA%\\ErgonPDF\\ErgonPDF.bat\""
+
+; 3. Right-click on empty background inside any Directory
+[HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\ErgonPDF]
+@="Launch ErgonPDF Workspace"
+"Icon"="\"%LOCALAPPDATA%\\ErgonPDF\\icon.ico\""
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\ErgonPDF\command]
+@="\"%LOCALAPPDATA%\\ErgonPDF\\ErgonPDF.bat\""

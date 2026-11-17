@@ -23,7 +23,11 @@ Focus: Refactoring monolithic modules into composable components, finalizing cli
 | Native Drag-and-Drop Reordering | Implement HTML5 drag-and-drop page reordering in the thumbnail sidebar with real-time positional updates. | Medium | Completed |
 | AI Extraction Pipeline Wiring | Connect AI Studio directly to `PDFEngineService.extractFullText()` for real document semantic analysis and raw text inspection. | Medium | Completed |
 | Settings DPI Persistence | Persist user rendering DPI configurations to `localStorage` via `StorageService` and apply dynamically to export pipelines. | Low | Completed |
-| Universal Tool Grid Routing | Route all 43 registered tools (including blank PDF creation, webcam scanner, URL converter, and image converters) through direct actions. | Medium | Completed |
+| Universal Tool Grid Routing | Route all 126 registered tools (including blank PDF creation, webcam scanner, URL converter, image converters, and full PDF24 parity) through direct actions. | Medium | Completed |
+| Complete 124-Tool PDF24 Parity | 100% feature parity with all public tools from PDF24, expanding catalog to 126 precision offline utilities. | High | Completed |
+| Permanent Vector Redaction Purge | Deep syntactic content stream parsing to permanently purge text tokens and vector paths beneath redaction boxes. | High | Completed |
+| Offline OCR Model Bundling | Pre-packaged local Tesseract.js language models and WebAssembly cores with zero external network downloads. | Medium | Completed |
+| CVE-2024-4367 Font Eval Mitigation | Enforced `isEvalSupported: false` across all PDF.js document loading tasks to eliminate font eval exploits. | Medium | Completed |
 | WCAG 2.1 AA Accessibility | Implement ARIA roles, live regions, combobox semantics, focus-visible outlines, and screen-reader utility classes. | Medium | Completed |
 | Automated Engine Integrity Suite | Expand `scripts/test-features.js` to assert structural validity and byte integrity across all static engine methods. | Medium | Completed |
 | 1-Click Windows Desktop Installer | Self-contained Windows installer batch script, lightweight loopback server, desktop shortcuts, and multi-res `.ico` brand icons. | High | Completed |
@@ -60,7 +64,7 @@ Focus: Native offline PWA operation, compiled Ghostscript integration, collabora
 | Local P2P Document Collaboration | WebRTC data-channel synchronization for real-time multi-user document review and comment tracking without central server storage. | High | Research |
 | Third-Party Tool Extension API | Pluggable tool registry allowing developers to write sandboxed Web Worker modules with standardized input/output interfaces. | High | Planned |
 | Mobile-First Touch Interface | Dedicated touch gesture handling (pinch-to-zoom, swipe-to-reorder) optimized for tablet and mobile viewports. | Medium | Planned |
-| Differential Redaction Engine | Deep syntactic content stream parsing to remove underlying text and vector paths beneath black-box redactions. | High | Research |
+| Differential Redaction Engine | Deep syntactic content stream parsing to remove underlying text and vector paths beneath black-box redactions. | High | Completed (v1.2.0) |
 
 ---
 

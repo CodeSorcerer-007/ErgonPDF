@@ -134,6 +134,12 @@ if defined ARG_TARGET (
     goto after_target_select
 )
 
+if "%AUTO_YES%"=="1" (
+    set "TARGET_DIR=%DEFAULT_TARGET%"
+    echo       Silent/Auto mode: using default directory: "%DEFAULT_TARGET%"
+    goto after_target_select
+)
+
 echo       Default location: %DEFAULT_TARGET%
 set /p "TARGET_INPUT=      Press Enter for default, or type a custom path: "
 

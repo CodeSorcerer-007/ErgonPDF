@@ -91,7 +91,16 @@ export const RecentFilesBar: React.FC<RecentFilesBarProps> = ({
           {recentFiles.map((file) => (
             <div
               key={file.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Open recent file: ${file.name}`}
               onClick={() => onSelectRecent(file)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectRecent(file);
+                }
+              }}
               className="interactive-card"
               style={{
                 padding: '10px 14px',

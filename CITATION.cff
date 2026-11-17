@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you utilize ErgonPDF in academic research, technical benchmarking, or software applications, please cite it as below."
+authors:
+  - family-names: "Siva"
+    given-names: "Karthik"
+    alias: "CodeSorcerer-007"
+    affiliation: "Independent Open Source Systems Engineer"
+title: "ErgonPDF: Sovereign Local-First Document Workspace, 126 Pure Client-Side PDF Tools, Zero-Cloud In-Browser Architecture"
+version: 1.2.0
+date-released: 2026-11-15
+url: "https://github.com/CodeSorcerer-007/ErgonPDF"
+repository-code: "https://github.com/CodeSorcerer-007/ErgonPDF"
+license: "MIT"
+keywords:
+  - pdf-tools
+  - webassembly
+  - client-side
+  - zero-telemetry
+  - privacy-first
+  - local-first
+  - pdf-lib
+  - pdfjs
+  - tesseract-ocr
+  - offline-first
+  - zero-data-exfiltration

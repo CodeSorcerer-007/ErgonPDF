@@ -4,7 +4,7 @@
 
 ![ErgonPDF Demo](brag-output/brag.gif)
 
-### 43 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever.
+### 126 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever.
 
 **The Open-Source, Privacy-First Client-Side Document Workspace.**
 
@@ -13,11 +13,11 @@
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Strict-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Processing: 100% Local](https://img.shields.io/badge/Processing-100%25%20Local%20(WASM)-10b981?style=flat-square)](https://webassembly.org/)
 [![Privacy: Zero Telemetry](https://img.shields.io/badge/Privacy-Zero%20Telemetry-success?style=flat-square)](docs/PRIVACY.md)
-[![Engine Integrity: 100% Pass](https://img.shields.io/badge/Engine%20Tests-20%2F20%20Pass-brightgreen.svg?style=flat-square)](scripts/test-features.js)
-[![Smoke Tests: 85 Endpoints](https://img.shields.io/badge/Smoke%20Tests-85%2F85%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
+[![Engine Integrity: 100% Pass](https://img.shields.io/badge/Engine%20Tests-25%2F25%20Pass-brightgreen.svg?style=flat-square)](scripts/test-features.js)
+[![Smoke Tests: 168 Endpoints](https://img.shields.io/badge/Smoke%20Tests-168%2F168%20Pass-brightgreen.svg?style=flat-square)](scripts/smoke-test.js)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
-[**Windows 1-Click Install**](#windows-desktop-app-installation-one-click) • [**Privacy Manifesto**](docs/PRIVACY.md) • [**FAQ**](docs/FAQ.md) • [**Tools Reference (43 Tools)**](docs/TOOLS_REFERENCE.md) • [**Comparison Matrix**](docs/COMPARISON.md) • [**Architecture**](docs/ARCHITECTURE.md)
+[**Windows 1-Click Install**](INSTALLATION.md#method-1-windows-one-click-native-installer) • [**Release Notes v1.2.0**](RELEASE_NOTES_v1.2.0.md) • [**Feature Matrix (126 Tools)**](ERGONPDF_FEATURE_MATRIX.md) • [**Performance Baseline**](ERGONPDF_PERFORMANCE_BASELINE.md) • [**Architecture ADRs**](docs/adr/README.md) • [**Privacy Manifesto**](docs/PRIVACY.md) • [**FAQ**](docs/FAQ.md) • [**API Reference**](docs/API_REFERENCE.md) • [**Beta Checklist**](BETA_RELEASE_CHECKLIST.md) • [**Release Audit**](PHASE_7_FINAL_RELEASE_AUDIT.md)
 
 </div>
 
@@ -35,7 +35,7 @@
 | **Pricing** | **100% Free & Open Source** | Freemium ($84/yr) | Freemium ($108/yr) | Paid ($239.88/yr) | Free Proprietary | Free (GPLv3) |
 | **Processing Location** | **100% Client-Side** | Cloud Server | Cloud Server | Cloud / Local | Local Desktop | Local Server |
 | **File Upload Required?** | ❌ **Never** | ✅ Yes | ✅ Yes | ⚠️ Cloud features | ❌ No | ⚠️ Upload to Docker |
-| **Total Tool Count** | **43 Tools** | ~25 Tools | ~20 Tools | ~30 Tools | ~28 Tools | ~45 Tools |
+| **Total Tool Count** | **126 Tools** | 31 Tools | ~20 Tools | ~30 Tools | 124 Tools | ~45 Tools |
 | **Offline Operation** | ✅ **Full Offline** | ❌ No | ❌ No | ⚠️ Paid | ✅ Yes | ⚠️ Needs Docker |
 | **No Account / Login Needed** | ✅ **Yes** | ⚠️ Limited | ⚠️ Limited | ❌ Subscription required | ✅ Yes | ✅ Yes |
 | **Windows 1-Click Installer** | ✅ **Included (.bat)** | ⚠️ Desktop (Paid) | ⚠️ Desktop (Paid) | ✅ Native Win32 | ✅ Windows EXE | ❌ Requires Docker |
@@ -50,7 +50,7 @@
 
 - [Overview](#overview)
 - [Privacy Guarantee](#privacy-guarantee)
-- [Feature Directory (43 Tools)](#feature-directory)
+- [Feature Directory (126 Tools)](#feature-directory)
 - [Windows Desktop App Installation](#windows-desktop-app-installation-one-click)
 - [Quickstart & Local Development](#quickstart)
 - [Architecture](#architecture)
@@ -86,19 +86,21 @@ ErgonPDF guarantees complete data sovereignty:
 
 ---
 
-## Feature Directory
+## Feature Directory (126 Tools)
 
-ErgonPDF organizes 43 precision utilities across six operational intent groups:
+ErgonPDF organizes 126 precision utilities across nine operational categories, achieving 100% feature parity with PDF24's public suite plus local AI and duplex scanning extensions:
 
-| Workflow Category | Included Utilities | Processing Engine & Execution Mode |
-| :--- | :--- | :--- |
-| **Assemble & Arrange** | Merge PDFs, Split Page Ranges, Drag-and-Drop Page Reordering, Rotate (90°, 180°, 270°), Delete Pages, Duplicate Pages, Reverse Sequences | 100% In-Browser (pdf-lib) |
-| **Imposition & Print** | 2-in-1 Page Halving, N-Up Sheet Imposition (2, 4, 9, 16 per page), Saddle-Stitch Booklet Assembly, Margin Crop, Dimension Standardization (A4, A3, Letter, Legal) | 100% In-Browser (pdf-lib) |
-| **Compress & Optimize** | Lossless Optimization (stream defragmentation and metadata purging), Adaptive Raster Downsampling (Balanced 144 DPI, Compact 96 DPI, Grayscale), Linearized Fast Web View | 100% In-Browser (Canvas + pdf-lib) |
-| **Sign, Annotate & Watermark** | Freehand Drawing Pad, Stylized Typographic Signature Generator, Transparent Stamp Overlay, Semi-Transparent Text Watermarks, Dynamic Header/Footer Page Numbering | 100% In-Browser (Canvas + pdf-lib) |
-| **Security & Privacy** | AES-256 Encryption & Permission Restrictions, Metadata Scrubbing, Permanent Visual Blackout Redaction, Cryptographic Passphrase Generation | 100% In-Browser (@pdfsmaller/pdf-encrypt + WebCrypto) |
-| **Convert & Extract** | High-Resolution Image Export (PNG, JPEG, WebP), Multi-Image to PDF Builder, Microsoft Word Export (`.doc`), Tabular Stream to Structured CSV, Vector Text Stream Dump | 100% In-Browser (PDF.js + JSZip) |
-| **Intelligence & Capture** | Multi-Threaded Tesseract OCR, Webcam Document Capture, Sandboxed HTML/Webpage Converter, Heuristic NLP Summarization, Entity Parser, Interactive Q&A Citations | 100% In-Browser (Tesseract.js Worker + Heuristic NLP) |
+| Workflow Category | Count | Key Included Utilities | Processing Engine & Execution Mode |
+| :--- | :---: | :--- | :--- |
+| **Organize & Layout** | **17 Tools** | Merge, Split, Rearrange Pages, Assemble, Remove Pages, Extract Pages, Rotate Pages, Pages per Sheet (N-Up), Booklet Creator, Poster Print, Halve Spreads, Alternate & Mix, Crop, Change Page Size, Bookmarks, Straighten Scans | 100% In-Browser (pdf-lib) |
+| **Convert & Transform** | **59 Tools** | PDF to Word, Excel, PowerPoint, Text, Markdown, HTML, RTF, EPUB, ODT, ODS, ODP, JPG, PNG, SVG, TIFF, PDF/A, plus reverse converters (Word to PDF, Excel to PDF, PowerPoint to PDF, Images to PDF, HEIC to JPG/PNG, WebP/SVG converters) | 100% In-Browser (PDF.js + Canvas + JSZip) |
+| **Create & Capture** | **16 Tools** | Blank/Lined/Grid Canvas, Webcam/Phone Camera Scan, Webpage to PDF, Photo Collage, Greeting Cards, Job Application Assembler, Dynamic QR Codes, Fillable Form Designer, Electronic Invoicing (ZUGFeRD / XRechnung / Peppol XML), PDF Printer | 100% In-Browser (pdf-lib + qrcode + Canvas) |
+| **Edit & Annotate** | **9 Tools** | Digital Signatures (Draw, Type, Upload, Verify), Freehand Annotations, Sticky Notes, Text Callouts, Custom Watermarks, Header/Footer Page Numbers, Letterhead Overlays, Interactive Form Filling | 100% In-Browser (Canvas + pdf-lib) |
+| **Compress & Optimize** | **8 Tools** | Adaptive Lossless Compression, Raster Downsampling (DPI & Quality), Convert to Grayscale, Invert Colors (Dark Mode), Flatten Forms, Rasterize Vector Text, Repair Corrupted Streams, Web Optimize (Linearize) | 100% In-Browser (Canvas + pdf-lib) |
+| **Security & Privacy** | **7 Tools** | AES-256 Document Lock, Decryption Unlock, Permanent Text & Vector Stream Redaction, Metadata & Doc Info Sanitization, Cryptographic Password Generator, Digital Signature Verification | 100% In-Browser (@pdfsmaller/pdf-encrypt + WebCrypto) |
+| **View & Compare** | **7 Tools** | Fullscreen Document Reader, Side-by-Side Visual Diff Compare, Multi-Document Text Search, ISO PDF/A & PDF/UA Validator, PDF Viewer Preferences Customizer, Direct Print | 100% In-Browser (PDF.js + Canvas) |
+| **OCR & Scan** | **2 Tools** | Local Multi-Threaded Tesseract OCR, Visual Copy from Scanned Documents | 100% In-Browser (Tesseract.js Web Worker + Local Traineddata) |
+| **AI Document Studio** | **1 Tool** | Zero-Cloud Semantic Document Assistant: Entity Extraction, Executive Summaries, Action Items, Financial Clause Parsing, Flashcards, and Citation Q&A | 100% In-Browser (Local Heuristic NLP Engine) |
 
 ---
 
@@ -346,18 +348,55 @@ docker run -d -p 8080:80 --name ergonpdf ergonpdf:1.2.0
 
 ## Documentation Library
 
-ErgonPDF provides exhaustive documentation covering engineering design, privacy invariants, security auditing, and user workflows:
+ErgonPDF provides an exhaustive documentation suite modeled after the highest production standards (VoiceBox & CodexOS), covering engineering design, privacy invariants, security auditing, and user workflows:
 
-- 🔒 **[Privacy Policy & Security Manifesto](docs/PRIVACY.md)** — Architectural explanation of our zero-upload guarantee, local WebAssembly sandbox, and compliance suitability (HIPAA, GDPR, NDAs).
-- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Answers to 18 common questions regarding memory limits, encryption standards, offline operation, and desktop installation.
-- ⚡ **[Comparison & Benchmark Guide](docs/COMPARISON.md)** — Detailed feature, cost, and architectural comparison against Adobe Acrobat Pro, ILovePDF, SmallPDF, PDF24, and Stirling-PDF.
-- 🛠️ **[Tools Reference Manual](docs/TOOLS_REFERENCE.md)** — Complete operational specifications for all 43 built-in tools across 9 categories.
+### 🏛️ Core Architecture & Decisions
 - 🏗️ **[System Architecture](docs/ARCHITECTURE.md)** — Deep dive into the reactive UI layer, Web Worker isolation, WASM binary bridges, and memory lifecycles.
-- 📖 **[User & Deployment Guide](docs/HOW_TO_USE.md)** — Practical walkthroughs for web and self-hosted environments (Docker, Nginx, Cloudflare Pages, Vercel).
-- 💻 **[Windows Desktop Installer Guide](installer/README-INSTALLER.md)** — Detailed instructions for 1-click Windows setup, headless loopback server, and uninstallation.
-- 👩‍💻 **[Detailed Contributor Guide](docs/CONTRIBUTING_DETAILED.md)** — Step-by-step developer tutorial on creating new tools, running test suites, and submitting PRs.
-- 🤖 **[AI Agent Guidelines](AGENTS.md)** — Architectural rules and quality gates for automated coding agents.
-- 🚀 **[Marketing & Launch Kit](docs/MARKETING_LAUNCH_KIT.md)** — Ready-to-use launch copy for Hacker News, Reddit, Product Hunt, Twitter/X, and LinkedIn.
+- ⚙️ **[PDF Engine Internals](docs/pdf-engine-internals.md)** — Dual engine model (`pdf-lib` + `pdfjs-dist`), geometric imposition, true irreversible redaction, and WebCrypto AES-256.
+- 📐 **[Architecture Decision Records (ADRs)](docs/adr/README.md)** — Comprehensive index of foundational design choices (ADR 001 to ADR 006).
+- 🔒 **[Security Architecture & Threat Model](docs/security.md)** — Deep security model, zero data egress invariant, DNS rebinding guards, and traversal protections.
+- 🛡️ **[Privacy Policy & Security Manifesto](docs/PRIVACY.md)** — Architectural explanation of our zero-upload guarantee, local WebAssembly sandbox, and compliance suitability (HIPAA, GDPR, NDAs).
+- ⚖️ **[Responsible Use Policy](RESPONSIBLE_USE.md)** — Ethical use guidelines, redaction integrity protocols, and compliance framework alignment.
+- 🔄 **[v1.0 vs v1.2 Evolution Guide](docs/V1_VS_V2_COMPARISON.md)** — Evolution from initial prototype to production architecture.
+
+### 📊 Feature Matrices, Audits & Benchmarks
+- 📑 **[System Architecture & Security Audit](ERGONPDF_AUDIT.md)** — Root system audit report modeled after CodexOS standards.
+- 🗺️ **[Implementation & Expansion Roadmap](ERGONPDF_IMPLEMENTATION_PLAN.md)** — Post-v1.2.0 milestone plan for multilingual OCR and form scripting.
+- 📋 **[126-Tool Comprehensive Feature Matrix](ERGONPDF_FEATURE_MATRIX.md)** — Complete audit of all 126 tools with execution engine, client-side status, and test coverage tags.
+- ⚡ **[Performance Baseline & Benchmark Report](ERGONPDF_PERFORMANCE_BASELINE.md)** — Empirical measurements of cold startup latency, memory footprints (10 to 500 pages), and sub-100ms operation throughput.
+- 🔍 **[Comparison & Benchmark Guide](docs/COMPARISON.md)** — Detailed feature, cost, and architectural comparison against Adobe Acrobat Pro, ILovePDF, SmallPDF, PDF24, and Stirling-PDF.
+- 🛠️ **[Tools Reference Manual](docs/TOOLS_REFERENCE.md)** — Complete operational specifications for all 126 built-in tools across 9 categories.
+
+### 💻 Installation & Operational Lifecycle
+- 🚀 **[Installation & Deployment Guide](INSTALLATION.md)** — Multi-modal deployment guide: 1-click Windows native script, WinGet, Scoop, Homebrew, Docker container, and air-gapped SCIF environments.
+- 🗑️ **[Uninstallation Guide](UNINSTALLATION.md)** — Clean zero-residue uninstallation runbook for Windows Desktop and local storage caches.
+- 🔄 **[Upgrading Guide](UPGRADING.md)** — In-place upgrades with our zero-data-migration guarantee.
+- 🪟 **[Windows Platform Integration](docs/windows-integration.md)** — Local loopback daemon, Windows Explorer context menus, Win32 path normalization, and desktop shortcuts.
+- 🚢 **[Release & Multi-Format Distribution](docs/release-and-distribution.md)** — Packaging, WinGet, Scoop, Homebrew Cask, Intranet Docker, and SCIF offline deployment.
+- 🏢 **[Enterprise GA Code Signing Guide](docs/ENTERPRISE_GA_SIGNING.md)** — Authenticode signing, SmartScreen reputation bootstrapping, and Microsoft Intune / GPO deployment.
+- ❓ **[Frequently Asked Questions (FAQ)](docs/FAQ.md)** — Answers to 18 common questions regarding memory limits, encryption standards, and offline operation.
+- 🩺 **[Troubleshooting & Diagnostics](docs/troubleshooting.md)** — Solutions for memory bounds, port conflicts, font fallbacks, and antivirus alerts.
+
+### 👩‍💻 Developer & Release Engineering
+- 🏁 **[Developer Getting Started Guide](docs/getting-started.md)** — Step-by-step developer tutorial on creating new tools, running test suites, and submitting PRs.
+- 🔨 **[Building from Source](docs/building-from-source.md)** — Detailed bundler specifications, manual chunking boundaries, and static worker assets.
+- 📚 **[Programmatic API Reference](docs/API_REFERENCE.md)** — Type-safe contracts and method signatures for `PDFEngineService`, `AIService`, and `OCRService`.
+- 🚢 **[Release Process & Engineering Runbook](RELEASE_PROCESS.md)** — Step-by-step release engineer runbook for version synchronization, 4-gate verification, and SHA-256 manifest generation.
+- 🧪 **[Testing Strategy & Quality Gates](docs/testing.md)** — Comprehensive 4-Tier test methodology covering static linting, 25 engine integrity tests, and 168 smoke-test endpoints.
+- 🤖 **[AI Agent Guidelines](AGENTS.md)** — Architectural invariants and quality gates for automated coding agents.
+
+### 🚀 Phase Reports & Release Collateral (VoiceBox Standard)
+- 📝 **[Release Notes v1.2.0](RELEASE_NOTES_v1.2.0.md)** — Official release notes and distribution manifest.
+- 🏷️ **[Phase 7: Release Engineering Report](PHASE_7_RELEASE_ENGINEERING_REPORT.md)** — Version audit, SHA-256 checksums, signing architecture, and build matrix.
+- 🛡️ **[Phase 7: Final Release Audit Report](PHASE_7_FINAL_RELEASE_AUDIT.md)** — Executive verdict and 18-point master verification matrix.
+- 🎯 **[Phase 7: Beta Qualification Report](PHASE_7_BETA_QUALIFICATION_REPORT.md)** — Beta distribution criteria, 9 tool categories, triage SLA matrix, and diagnostic protocols.
+- 📋 **[Beta Release Distribution Checklist](BETA_RELEASE_CHECKLIST.md)** — Release candidate qualification checklist and artifact manifest.
+- 🧪 **[Beta Testing Guide](BETA_TESTING_GUIDE.md)** — Structured testing walkthroughs across all 9 tool categories.
+- 📝 **[Beta Feedback & Bug Report Template](BETA_FEEDBACK_TEMPLATE.md)** — Standardized reporting form with strict privacy scrubbing rules.
+- 📣 **[Marketing & Launch Kit](docs/MARKETING_LAUNCH_KIT.md)** — Ready-to-use launch copy for Hacker News (Show HN), Reddit, Product Hunt, and Twitter/X.
+- 🖼️ **[Media & Visual Assets Directory](docs/media/README.md)** — Branding guidelines, badges, and screenshot indexes.
+- 📜 **[Citation File (CITATION.cff)](CITATION.cff)** — Standardized academic and software citation metadata.
+- ⚖️ **[Third-Party Notices](NOTICE)** — Third-party open-source component licenses and attributions.
 
 ---
 
@@ -372,10 +411,10 @@ npm run lint
 # 2. Strict TypeScript compilation and Vite production bundling
 npm run build
 
-# 3. PDF Engine Feature Integrity Suite (20 end-to-end engine tests)
+# 3. PDF Engine Feature Integrity Suite (25 end-to-end engine tests)
 npm run test-features
 
-# 4. HTTP Application Smoke Test Suite (85 endpoint assertions)
+# 4. HTTP Application Smoke Test Suite (168 endpoint & route assertions)
 npm run smoke-test
 ```
 

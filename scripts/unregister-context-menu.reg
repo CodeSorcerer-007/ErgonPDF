@@ -1,0 +1,10 @@
+Windows Registry Editor Version 5.00
+
+; ==============================================================================
+; ErgonPDF — Windows Explorer Context Menu Cleanup (Rollback HKCU)
+; Completely removes all ErgonPDF shell handlers from Windows Explorer.
+; ==============================================================================
+
+[-HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.pdf\shell\ErgonPDF]
+[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\ErgonPDF]
+[-HKEY_CURRENT_USER\Software\Classes\Directory\Background\shell\ErgonPDF]

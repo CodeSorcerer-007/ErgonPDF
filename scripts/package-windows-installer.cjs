@@ -2,17 +2,20 @@
  * @file package-windows-installer.cjs
  * @description Packages the ErgonPDF Windows Installer into a ready-to-distribute, self-contained ZIP archive.
  * Includes root launcher scripts, offline runtime server, bundled static assets, and pre-built distribution files.
+ * Generates SHA-256 checksums, SHA256SUMS.txt, latest.json updater metadata, and release notes.
  *
  * @license MIT
  */
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const JSZip = require('jszip');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const RELEASE_DIR = path.resolve(ROOT_DIR, 'release');
-const ZIP_NAME = 'ErgonPDF-v1.2.0-Windows-Setup.zip';
+const VERSION = '1.2.0';
+const ZIP_NAME = `ErgonPDF-v${VERSION}-Windows-Setup.zip`;
 
 // Ignore runtime cache or OS metadata files
 const IGNORED_FILES = new Set(['.ergon_runtime.json', '.DS_Store', 'Thumbs.db', 'ehthumbs.db', 'desktop.ini']);
@@ -46,8 +49,27 @@ async function createPackage() {
 
   const zip = new JSZip();
 
-  // 1. Add root install-ergonpdf.bat
-  zip.file('install-ergonpdf.bat', fs.readFileSync(path.join(ROOT_DIR, 'install-ergonpdf.bat')));
+  // 1. Add root operational and lifecycle files
+  const rootFiles = [
+    'install.bat',
+    'install-ergonpdf.bat',
+    'launch.bat',
+    'uninstall.bat',
+    'update.bat',
+    'README.md',
+    'LICENSE',
+    'RESPONSIBLE_USE.md',
+    'INSTALLATION.md',
+    'UNINSTALLATION.md',
+    'UPGRADING.md'
+  ];
+
+  for (const file of rootFiles) {
+    const fullPath = path.join(ROOT_DIR, file);
+    if (fs.existsSync(fullPath)) {
+      zip.file(file, fs.readFileSync(fullPath));
+    }
+  }
 
   // 2. Add installer folder contents
   const installerZip = zip.folder('installer');
@@ -68,10 +90,40 @@ async function createPackage() {
   });
 
   fs.writeFileSync(zipPath, buffer);
+
+  // 5. Compute SHA-256 Checksum
+  const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+  const sha256FilePath = `${zipPath}.sha256`;
+  fs.writeFileSync(sha256FilePath, `${hash} *${ZIP_NAME}\n`);
+
+  // 6. Write/Update SHA256SUMS.txt
+  const sumsPath = path.join(RELEASE_DIR, 'SHA256SUMS.txt');
+  fs.writeFileSync(sumsPath, `${hash}  ${ZIP_NAME}\n`);
+
+  // 7. Write latest.json updater metadata
+  const latestJsonPath = path.join(RELEASE_DIR, 'latest.json');
+  const latestMeta = {
+    version: VERSION,
+    notes: `ErgonPDF v${VERSION} — Privacy-First All-in-One Local PDF Workspace. 100% In-Browser Execution.`,
+    pub_date: new Date().toISOString(),
+    platforms: {
+      "windows-x86_64": {
+        signature: "",
+        url: `https://github.com/CodeSorcerer-007/ErgonPDF/releases/download/v${VERSION}/${ZIP_NAME}`,
+        sha256: hash
+      }
+    }
+  };
+  fs.writeFileSync(latestJsonPath, JSON.stringify(latestMeta, null, 2) + '\n');
+
   const sizeMb = (buffer.length / (1024 * 1024)).toFixed(2);
   console.log(`====================================================`);
-  console.log(`  Package Created: release/${ZIP_NAME}`);
-  console.log(`  Size           : ${sizeMb} MB`);
+  console.log(`  Package Created : release/${ZIP_NAME}`);
+  console.log(`  SHA-256 Hash    : ${hash}`);
+  console.log(`  Package Size    : ${sizeMb} MB`);
+  console.log(`  Checksum File   : release/${ZIP_NAME}.sha256`);
+  console.log(`  Metadata File   : release/latest.json`);
+  console.log(`  SHA256SUMS File : release/SHA256SUMS.txt`);
   console.log(`  Ready for user distribution!`);
   console.log(`====================================================`);
 }

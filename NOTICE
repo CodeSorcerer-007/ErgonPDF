@@ -1,0 +1,13 @@
+ErgonPDF
+Copyright (c) 2026 ErgonPDF Contributors
+
+This product includes software developed by third-party open-source projects:
+
+1. pdf-lib (MIT License) - Copyright (c) 2019 Andrew Dillon
+2. pdfjs-dist / PDF.js (Apache-2.0 License) - Copyright (c) Mozilla and individual contributors
+3. tesseract.js (Apache-2.0 License) - Copyright (c) 2020 Jerome Wu
+4. lucide-react (ISC License) - Copyright (c) 2022 Lucide Contributors
+5. @pdfsmaller/pdf-encrypt (MIT License) - Copyright (c) PDFSmaller Contributors
+6. canvas-confetti (ISC License) - Copyright (c) 2020 Kiril Vatev
+7. jszip (MIT License / GPLv3) - Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
+8. React & React-DOM (MIT License) - Copyright (c) Meta Platforms, Inc.

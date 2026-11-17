@@ -25,7 +25,7 @@ ErgonPDF/
 │   ├── components/         # React UI modals, workspace components, header, error boundary
 │   │   └── workspace/      # Dedicated tool view components
 │   ├── config/
-│   │   └── toolsRegistry.ts# Central single-source-of-truth for all 43 registered tools
+│   │   └── toolsRegistry.ts# Central single-source-of-truth for all 126 registered tools (100% PDF24 parity + signature tools)
 │   ├── services/
 │   │   ├── pdfEngine.ts    # Core pdf-lib / WebAssembly document manipulation functions
 │   │   └── aiService.ts    # Client-side heuristic document analysis & query engine
@@ -68,10 +68,10 @@ npm run lint
 # 2. Strict TypeScript typecheck & production build
 npm run build
 
-# 3. PDF Engine Feature Integrity suite (20 core features)
+# 3. PDF Engine Feature Integrity suite (25 core features)
 npm run test-features
 
-# 4. Comprehensive 85-point smoke test (HTTP, Engine, UI routes)
+# 4. Comprehensive 168-point smoke test (HTTP, Engine, 126 UI routes)
 npm run smoke-test
 ```
 

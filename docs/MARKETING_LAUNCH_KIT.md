@@ -6,7 +6,7 @@
 
 ## 🎯 Positioning Manifesto
 
-> **"ErgonPDF — 43 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever."**  
+> **"ErgonPDF — 126 Professional PDF Tools. 100% Local. Zero Cloud. Free Forever."**  
 > Stop uploading your private documents to third-party cloud servers. ErgonPDF runs entirely inside your browser via WebAssembly with zero telemetry, zero accounts, and zero paywalls.
 
 ---
@@ -14,7 +14,7 @@
 ## 1. Hacker News — Show HN
 
 ### Suggested Title:
-`Show HN: ErgonPDF – 43 PDF tools running 100% locally in-browser via WebAssembly`
+`Show HN: ErgonPDF – 126 PDF tools running 100% locally in-browser via WebAssembly`
 
 ### Post Body:
 ```text
@@ -22,12 +22,12 @@ Hi HN,
 
 I built ErgonPDF because I was tired of uploading confidential contracts, medical records, and tax forms to cloud converters like ILovePDF and SmallPDF just to merge or sign a document.
 
-ErgonPDF is a free, MIT-licensed, all-in-one PDF workspace featuring 43 tools that run 100% locally in your browser using WebAssembly (via pdf-lib, PDF.js, and Tesseract.js). 
+ErgonPDF is a free, MIT-licensed, all-in-one PDF workspace featuring 126 tools (full 124-tool PDF24 feature parity plus local AI Studio and duplex mix) that run 100% locally in your browser using WebAssembly (via pdf-lib, PDF.js, and Tesseract.js). 
 
 Key highlights:
 - 100% Client-Side: Zero server uploads. No backend processing API. If you disconnect your Wi-Fi, every tool still works.
 - Zero Telemetry: No Google Analytics, Segment, Sentry, or tracking pixels.
-- 43 Professional Tools: Merge, split, booklet imposition, N-Up, redact (permanent text stream removal), sign, watermark, OCR, compress, repair, and convert.
+- 126 Professional Tools: 100% PDF24 feature parity + local AI Document Studio + duplex scan mixing. Merge, split, booklet imposition, N-Up, permanent vector redaction, sign, watermark, OCR, compress, repair, and bidirectional format conversions.
 - 1-Click Windows Desktop Installer: Includes an offline launcher batch script that spins up a local loopback server (127.0.0.1:8096) with desktop & Start Menu shortcuts.
 - No Accounts or Paywalls: Truly free for commercial and personal use.
 
@@ -42,7 +42,7 @@ I would love your feedback on the architecture, performance with massive PDF fil
 ## 2. Reddit Multi-Community Campaign
 
 ### Post A: `r/selfhosted`
-**Title**: *ErgonPDF: 43-tool PDF suite with 1-click Windows desktop installer — no Docker or cloud required*  
+**Title**: *ErgonPDF: 126-tool PDF suite with 1-click Windows desktop installer — no Docker or cloud required*  
 **Content**:
 > Hey r/selfhosted,  
 > Most self-hosted PDF suites (like Stirling-PDF) require running Docker containers, WSL2, or a dedicated Linux server.  
@@ -53,7 +53,7 @@ I would love your feedback on the architecture, performance with massive PDF fil
 > What do you think?
 
 ### Post B: `r/privacy`
-**Title**: *Stop uploading your PDFs to the cloud — 43 tools running 100% on your machine (zero telemetry, open source)*  
+**Title**: *Stop uploading your PDFs to the cloud — 126 tools running 100% on your machine (zero telemetry, open source)*  
 **Content**:
 > If you've ever used online PDF utilities for signing or merging sensitive documents, your files are being pushed to external servers where they can be retained, analyzed, or leaked.  
 > ErgonPDF is an open-source alternative where all processing occurs directly in your local browser memory using WebAssembly.  
@@ -65,15 +65,15 @@ I would love your feedback on the architecture, performance with massive PDF fil
 > Full source code & privacy manifesto: https://github.com/CodeSorcerer-007/ErgonPDF
 
 ### Post C: `r/windows` & `r/sysadmin`
-**Title**: *Free, open-source Adobe Acrobat alternative for Windows (43 tools, offline, 1-click installer)*  
+**Title**: *Free, open-source Adobe Acrobat & PDF24 alternative for Windows (126 tools, offline, 1-click installer)*  
 **Content**:
 > For sysadmins and Windows users looking for a clean, non-bloated PDF solution for corporate or personal workstations:  
-> ErgonPDF gives you 43 tools (merge, split, sign, redact, crop, booklet creation, OCR, repair, compress) without Adobe's \$240/yr subscription or heavy background bloatware.  
+> ErgonPDF gives you 126 tools (100% PDF24 parity + AI Studio + duplex mix) without Adobe's \$240/yr subscription or heavy background bloatware.  
 > Ships with a silent desktop installer script.  
 > GitHub: https://github.com/CodeSorcerer-007/ErgonPDF
 
 ### Post D: `r/webdev`
-**Title**: *Showcase: Building a 43-tool PDF suite running purely on WebAssembly + React 19*  
+**Title**: *Showcase: Building a 126-tool PDF suite running purely on WebAssembly + React 19*  
 **Content**:
 > Deep dive into how we built ErgonPDF using React 19, pdf-lib, PDF.js, and Tesseract.js in WebAssembly to process gigabyte-scale documents in client RAM with zero backend API.  
 > GitHub: https://github.com/CodeSorcerer-007/ErgonPDF
@@ -83,7 +83,7 @@ I would love your feedback on the architecture, performance with massive PDF fil
 ## 3. Product Hunt Launch Kit
 
 - **Product Name**: ErgonPDF
-- **Tagline**: 43 PDF Tools. 100% Local. Zero Cloud. Free Forever.
+- **Tagline**: 126 PDF Tools. 100% Local. Zero Cloud. Free Forever.
 - **Topics**: `Developer Tools`, `Productivity`, `Open Source`, `Privacy`, `Windows`
 - **First Comment by Maker**:
 ```text
@@ -93,10 +93,10 @@ We built ErgonPDF with one mission: to make PDF tools fast, completely private, 
 
 Too many everyday tasks—merging contracts, signing forms, redacting sensitive numbers, or running OCR—force you to upload personal documents to third-party cloud servers with dubious data retention policies.
 
-ErgonPDF changes that. By leveraging modern WebAssembly and client-side web technologies, all 43 tools process your documents right on your device. Your data never leaves your computer.
+ErgonPDF changes that. By leveraging modern WebAssembly and client-side web technologies, all 126 tools process your documents right on your device. Your data never leaves your computer.
 
 Features at a glance:
-🚀 43 Professional Tools: Organize, Edit, Sign, Convert, OCR, Compress, and Secure.
+🚀 126 Professional Tools: 100% PDF24 Parity, AI Document Studio, E-Invoicing, Organize, Edit, Sign, Convert, OCR, Compress, and Secure.
 🔒 100% Private: Zero server uploads, zero telemetry, zero ads.
 💻 1-Click Windows App: Install locally with desktop & Start menu shortcuts.
 ⭐ MIT Open Source: Free for personal and commercial use.
@@ -111,7 +111,7 @@ Try it out and let us know what features you want to see next!
 ### Tweet 1 (Hook + GIF):
 > I was tired of uploading confidential PDFs to cloud converters just to merge or sign them.  
 > 
-> So I built ErgonPDF: 43 professional PDF tools that run 100% LOCALLY on your computer using WebAssembly.  
+> So I built ErgonPDF: 126 professional PDF tools that run 100% LOCALLY on your computer using WebAssembly.  
 > 
 > Zero cloud uploads. Zero telemetry. Free & open source forever. 👇🧵  
 > *(Attach brag-output/brag.gif)*
@@ -124,14 +124,15 @@ Try it out and let us know what features you want to see next!
 > ErgonPDF executes entirely inside your browser memory. You can literally turn off your Wi-Fi and it keeps working.
 
 ### Tweet 3 (The Tools):
-> 43 built-in tools across 9 categories:  
-> ✂️ Split, Merge, Organize, Rotate  
-> 📖 Saddle-Stitch Booklet & N-Up Imposition  
-> ✍️ Digital Signature & Form Builder  
-> ⬛ Permanent Redaction & Metadata Scrubber  
-> 🔍 Local Tesseract OCR (searchable text)  
-> 📦 Lossless & Balanced Compression  
-> 🔄 Convert to Word, Excel, Images, PDF/A
+> 126 built-in tools across 9 categories (100% PDF24 Parity):  
+> ✂️ Split, Merge, Rearrange, Rotate  
+> 📖 Saddle-Stitch Booklet, Poster & N-Up Imposition  
+> ✍️ Digital Signature & Interactive Form Builder  
+> ⬛ Permanent Vector Redaction & Metadata Scrubber  
+> 🔍 Local Offline Tesseract OCR (searchable text)  
+> 📦 Lossless & Adaptive Balanced Compression  
+> 🔄 Convert PDF to Word, Excel, PPTX, Images, PDF/A & reverse  
+> ⚡ Local Heuristic AI Document Studio & Duplex Scanner Mix
 
 ### Tweet 4 (Windows Installer):
 > Prefer a desktop app?  
@@ -156,7 +157,7 @@ Try it out and let us know what features you want to see next!
 > 
 > That’s why we created **ErgonPDF** — an open-source, zero-upload PDF workspace.  
 > 
-> ✨ 43 comprehensive PDF tools  
+> ✨ 126 comprehensive PDF tools (100% PDF24 feature parity)  
 > 🔒 100% client-side WebAssembly execution  
 > 🚫 Zero network transmission, zero cloud storage, zero tracking  
 > 💻 Standalone Windows desktop installation included  
@@ -171,6 +172,6 @@ Try it out and let us know what features you want to see next!
 ## 6. GitHub Repository Optimization Checklist
 
 - [x] **Topics**: `pdf`, `pdf-editor`, `webassembly`, `privacy`, `offline`, `wasm`, `local-first`, `windows-app`, `typescript`, `react`, `pdf-tools`, `open-source`
-- [x] **About Description**: *"The Open-Source, Privacy-First All-in-One PDF Workspace. 43 professional tools running 100% locally via WebAssembly with zero cloud uploads."*
+- [x] **About Description**: *"The Open-Source, Privacy-First All-in-One PDF Workspace. 126 professional tools running 100% locally via WebAssembly with zero cloud uploads."*
 - [x] **Website URL**: Set to GitHub repo or documentation URL.
 - [x] **README Hero**: Embedded `brag.gif` visual demo at the top of the README.
