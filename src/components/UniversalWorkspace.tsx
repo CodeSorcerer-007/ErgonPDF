@@ -102,6 +102,9 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const toArrayBuffer = (uint8: Uint8Array): ArrayBuffer =>
+  uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength) as ArrayBuffer;
+
 export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   document: initialDoc,
   activeToolId = 'organize',
@@ -694,47 +697,54 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
 
     try {
       let currentBuffer = docState.arrayBuffer;
+      let modifiedBytes: Uint8Array | null = null;
 
-      // 1. Reorder / Rotate / Delete pages
-      setProcessingStatus('Rebuilding pages…');
-      const pageConfigs = docState.pages.map((p: PDFPageInfo) => ({
-        originalIndex: p.originalIndex,
-        rotation: p.rotation,
-        deleted: p.deleted,
-      }));
-      let modifiedBytes = await PDFEngineService.reorderAndTransformPages(currentBuffer, pageConfigs);
-      currentBuffer = modifiedBytes.buffer as ArrayBuffer;
+      // 1. Reorder / Rotate / Delete pages (only if user actually modified page order, rotation, or deletion)
+      const hasPageModifications = docState.pages.some(
+        (p: PDFPageInfo, idx: number) => p.deleted || (p.rotation && p.rotation !== 0) || p.originalIndex !== idx
+      );
+
+      if (hasPageModifications) {
+        setProcessingStatus('Rebuilding pages…');
+        const pageConfigs = docState.pages.map((p: PDFPageInfo) => ({
+          originalIndex: p.originalIndex,
+          rotation: p.rotation,
+          deleted: p.deleted,
+        }));
+        modifiedBytes = await PDFEngineService.reorderAndTransformPages(currentBuffer, pageConfigs);
+        currentBuffer = toArrayBuffer(modifiedBytes);
+      }
 
       // 2. Signatures
       if (placedSignatures.length > 0) {
         setProcessingStatus('Baking digital signatures…');
         modifiedBytes = await PDFEngineService.applySignatures(currentBuffer, placedSignatures);
-        currentBuffer = modifiedBytes.buffer as ArrayBuffer;
+        currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
       // 3. Redactions
       if (redactions.length > 0) {
         setProcessingStatus('Flattening redaction blackouts…');
         modifiedBytes = await PDFEngineService.applyRedactions(currentBuffer, redactions);
-        currentBuffer = modifiedBytes.buffer as ArrayBuffer;
+        currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
       // 4. Watermark if configured
       if ((currentToolTab === 'watermark-pdf' || currentToolTab === 'add-watermark') && watermarkSettings.text) {
         setProcessingStatus('Applying watermark…');
         modifiedBytes = await PDFEngineService.addWatermark(currentBuffer, watermarkSettings);
-        currentBuffer = modifiedBytes.buffer as ArrayBuffer;
+        currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
       // 5. Page numbers if configured
       if (currentToolTab === 'page-numbers' || currentToolTab === 'add-page-numbers') {
         setProcessingStatus('Stamping page numbers…');
         modifiedBytes = await PDFEngineService.addPageNumbers(currentBuffer, pageNumberSettings);
-        currentBuffer = modifiedBytes.buffer as ArrayBuffer;
+        currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
       // 6. Compression or Special PDF24 Transformations
-      let finalBytes = modifiedBytes;
+      let finalBytes: Uint8Array = modifiedBytes || new Uint8Array(currentBuffer);
       if (currentToolTab === 'compress-pdf' || currentToolTab === 'convert-pdf-to-grayscale' || currentToolTab === 'invert-pdf') {
         setProcessingStatus('Running adaptive compression engine…');
         const comp = await PDFEngineService.compressDocument(currentBuffer, {
@@ -821,12 +831,13 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
 
       // Update docState with compiled document so canvas and workspace reflect new content
       try {
-        const inspected = await PDFEngineService.inspectDocument(finalBytes.buffer as ArrayBuffer);
+        const safeArrayBuffer = toArrayBuffer(finalBytes);
+        const inspected = await PDFEngineService.inspectDocument(safeArrayBuffer);
         setDocState({
           id: docState.id,
           name: safeDownloadName,
           size: finalBytes.byteLength,
-          arrayBuffer: finalBytes.buffer as ArrayBuffer,
+          arrayBuffer: safeArrayBuffer,
           pageCount: inspected.pageCount,
           pages: inspected.pages,
           metadata: inspected.metadata || docState.metadata,
@@ -852,6 +863,102 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       setIsProcessing(false);
       setProcessingStatus('');
     }
+  };
+
+  const getCompletionMessage = () => {
+    if (!completedStats) {
+      return <span>Document ready</span>;
+    }
+
+    if (currentToolTab === 'compress-pdf' || currentToolTab === 'convert-pdf-to-grayscale') {
+      if (completedStats.newSize < completedStats.original) {
+        const pct = Math.round((1 - completedStats.newSize / completedStats.original) * 100);
+        return (
+          <>
+            <span>Reduced by {pct}%</span>
+            <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+              ({formatFileSize(completedStats.original)} → {formatFileSize(completedStats.newSize)})
+            </span>
+          </>
+        );
+      }
+      return (
+        <>
+          <span>Compressed document ready</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'watermark-pdf' || currentToolTab === 'add-watermark') {
+      return (
+        <>
+          <span>Watermark applied successfully</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'sign-pdf') {
+      return (
+        <>
+          <span>Signatures applied successfully</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'protect-pdf' || currentToolTab === 'lock-pdf') {
+      return (
+        <>
+          <span>Document encrypted successfully</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'unlock-pdf') {
+      return (
+        <>
+          <span>Security removed successfully</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'page-numbers' || currentToolTab === 'add-page-numbers') {
+      return (
+        <>
+          <span>Page numbers added successfully</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    if (currentToolTab === 'redact-pdf') {
+      return (
+        <>
+          <span>Redactions flattened securely</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+            ({formatFileSize(completedStats.newSize)})
+          </span>
+        </>
+      );
+    }
+    return (
+      <>
+        <span>Document compiled successfully</span>
+        <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
+          ({formatFileSize(completedStats.newSize)})
+        </span>
+      </>
+    );
   };
 
   const activePage = docState.pages[currentPageNum - 1];
@@ -904,7 +1011,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               {docState.name}
             </span>
             <span className="badge badge-muted" style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>
-              {(docState.size / (1024 * 1024)).toFixed(1)} MB
+              {formatFileSize(docState.size)}
             </span>
             <span className="badge badge-privacy" style={{ fontSize: '11px', flexShrink: 0 }}>
               100% Local
@@ -1248,6 +1355,45 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
                     </button>
                   </div>
                 ))}
+
+              {/* Live Watermark Preview Overlay */}
+              {(currentToolTab === 'watermark-pdf' || currentToolTab === 'add-watermark') && watermarkSettings.text && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                    zIndex: 3,
+                  }}
+                >
+                  <span
+                    style={{
+                      transform: `rotate(${-(watermarkSettings.rotation ?? 45)}deg)`,
+                      fontSize: `${(watermarkSettings.fontSize || 48) * zoomScale}px`,
+                      fontWeight: 700,
+                      fontFamily: 'Helvetica, Arial, sans-serif',
+                      color: watermarkSettings.color === 'red' ? '#ef4444' :
+                             watermarkSettings.color === 'blue' ? '#3b82f6' :
+                             watermarkSettings.color === 'green' ? '#10b981' :
+                             watermarkSettings.color === 'black' ? '#111827' :
+                             '#6b7280',
+                      opacity: watermarkSettings.opacity,
+                      userSelect: 'none',
+                      whiteSpace: 'nowrap',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {watermarkSettings.text}
+                  </span>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -1966,21 +2112,7 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             </div>
             <div>
               <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                {completedStats.newSize < completedStats.original ? (
-                  <>
-                    <span>Reduced by {Math.round((1 - completedStats.newSize / completedStats.original) * 100)}%</span>
-                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                      ({formatFileSize(completedStats.original)} → {formatFileSize(completedStats.newSize)})
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span>Document compiled successfully</span>
-                    <span style={{ fontWeight: 400, color: 'var(--text-muted)', marginLeft: '6px' }}>
-                      ({formatFileSize(completedStats.newSize)})
-                    </span>
-                  </>
-                )}
+                {getCompletionMessage()}
               </div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className="badge badge-privacy" style={{ fontSize: '9.5px', padding: '1px 5px' }}>

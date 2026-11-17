@@ -441,26 +441,50 @@ export class PDFEngineService {
     const font = await doc.embedFont(StandardFonts.HelveticaBold);
 
     // Parse color components
-    let red = 0.5, green = 0.5, blue = 0.5;
-    if (settings.color === 'red') { red = 0.9; green = 0.2; blue = 0.2; }
-    else if (settings.color === 'blue') { red = 0.2; green = 0.4; blue = 0.9; }
-    else if (settings.color === 'green') { red = 0.1; green = 0.7; blue = 0.3; }
+    let red = 0.42, green = 0.45, blue = 0.50; // default neutral grey
+    if (settings.color === 'red') { red = 0.93; green = 0.27; blue = 0.27; }
+    else if (settings.color === 'blue') { red = 0.23; green = 0.51; blue = 0.96; }
+    else if (settings.color === 'green') { red = 0.06; green = 0.73; blue = 0.51; }
+    else if (settings.color === 'black') { red = 0.07; green = 0.10; blue = 0.15; }
 
     // Default rotation to 0 degrees if omitted or invalid
     const rotationAngle = typeof settings.rotation === 'number' && !isNaN(settings.rotation) ? settings.rotation : 0;
+    const rad = (rotationAngle * Math.PI) / 180;
+    const fontSize = typeof settings.fontSize === 'number' && settings.fontSize > 0 ? settings.fontSize : 48;
+    const opacity = typeof settings.opacity === 'number' && settings.opacity > 0 ? settings.opacity : 0.25;
 
-    pages.forEach((page) => {
+    const targetPages = (settings.pages === 'custom' && settings.customPages)
+      ? pages.filter((_, idx) => {
+          const pageNum = idx + 1;
+          const parts = (settings.customPages || '').split(',').map((s) => s.trim());
+          return parts.some((p) => {
+            if (p.includes('-')) {
+              const [start, end] = p.split('-').map(Number);
+              return !isNaN(start) && !isNaN(end) && pageNum >= start && pageNum <= end;
+            }
+            return Number(p) === pageNum;
+          });
+        })
+      : pages;
+
+    targetPages.forEach((page) => {
       const { width, height } = page.getSize();
-      const textWidth = font.widthOfTextAtSize(settings.text, settings.fontSize);
-      const textHeight = font.heightAtSize(settings.fontSize);
+      const textWidth = font.widthOfTextAtSize(settings.text, fontSize);
+      const textHeight = font.heightAtSize(fontSize);
+
+      // In PDF coordinates, rotation around the text center requires compensating for the lower-left origin pivot:
+      const cx = width / 2;
+      const cy = height / 2;
+      const dx = (textWidth / 2) * Math.cos(rad) - (textHeight / 2) * Math.sin(rad);
+      const dy = (textWidth / 2) * Math.sin(rad) + (textHeight / 2) * Math.cos(rad);
 
       page.drawText(settings.text, {
-        x: (width - textWidth) / 2,
-        y: (height - textHeight) / 2,
-        size: settings.fontSize,
+        x: cx - dx,
+        y: cy - dy,
+        size: fontSize,
         font,
         color: rgb(red, green, blue),
-        opacity: settings.opacity,
+        opacity,
         rotate: degrees(rotationAngle),
       });
     });
