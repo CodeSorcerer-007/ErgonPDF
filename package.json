@@ -48,25 +48,25 @@
   "dependencies": {
     "@pdfsmaller/pdf-encrypt": "1.2.0",
     "canvas-confetti": "1.9.4",
-    "jszip": "3.10.1",
-    "lucide-react": "1.41.0",
+    "jszip": "3.10.2",
+    "lucide-react": "1.73.0",
     "pdf-lib": "1.17.1",
-    "pdfjs-dist": "3.11.174",
+    "pdfjs-dist": "6.5.438",
     "qrcode": "1.5.4",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "tesseract.js": "7.0.0"
   },
   "devDependencies": {
     "@types/canvas-confetti": "1.9.0",
-    "@types/node": "24.13.3",
+    "@types/node": "26.6.6",
     "@types/qrcode": "^1.5.6",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
-    "@vitejs/plugin-react": "6.1.0",
-    "oxlint": "1.79.0",
-    "typescript": "6.0.2",
-    "vite": "8.2.2"
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "oxlint": "1.93.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
   },
   "overrides": {
     "tar": "7.5.22"
