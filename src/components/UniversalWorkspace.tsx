@@ -18,7 +18,8 @@ import {
   FileText,
   Zap,
   PenTool,
-  Lock
+  Lock,
+  Sliders
 } from 'lucide-react';
 import { TOOLS_REGISTRY, CATEGORY_LABELS } from '../config/toolsRegistry';
 import type { 
@@ -32,13 +33,18 @@ import type {
   NUpSettings,
   CropSettings,
   ResizeSettings,
-  QRCodeSettings
+  QRCodeSettings,
+  CanvasElement,
+  ShapeType,
+  StampVariant,
+  CanvasPreferences
 } from '../types/pdf';
 import { PDFEngineService } from '../services/pdfEngine';
 import { OCRService } from '../services/ocrService';
 import { StorageService } from '../services/storageService';
 import { SignatureModal } from './SignatureModal';
 import { AiStudioModal } from './AiStudioModal';
+import { WorkspaceCustomizerModal } from './WorkspaceCustomizerModal';
 import {
   ThumbnailSidebar,
   CompressTool,
@@ -80,6 +86,9 @@ import {
   AiChatTool,
   TranslatePdfTool,
   PdfSummarizeTool,
+  InteractiveDesignLayer,
+  DesignToolbar,
+  DesignInspector,
 } from './workspace';
 import {
   computePageClickSelection,
@@ -101,6 +110,9 @@ const formatFileSize = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 };
+
+const generateCanvasId = (prefix: string): string =>
+  `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
 const toArrayBuffer = (uint8: Uint8Array): ArrayBuffer =>
   uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength) as ArrayBuffer;
@@ -132,6 +144,15 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
   const [annotationMode, setAnnotationMode] = useState<'pen' | 'highlighter'>('pen');
   const [isDrawing, setIsDrawing] = useState<boolean>(false);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Interactive Design Studio & Canvas Elements State
+  const [canvasElements, setCanvasElements] = useState<CanvasElement[]>([]);
+  const [selectedCanvasElementId, setSelectedCanvasElementId] = useState<string | null>(null);
+  const [canvasHistory, setCanvasHistory] = useState<CanvasElement[][]>([[]]);
+  const [canvasHistoryIndex, setCanvasHistoryIndex] = useState<number>(0);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
+  const [workspaceQuickTools, setWorkspaceQuickTools] = useState<string[]>(() => StorageService.getWorkspaceQuickTools());
+  const [canvasPrefs, setCanvasPrefs] = useState<CanvasPreferences>(() => StorageService.getCanvasPreferences());
 
   // Advanced Compression State
   const [compressionPreset, setCompressionPreset] = useState<'lossless' | 'balanced' | 'max' | 'grayscale'>('balanced');
@@ -644,22 +665,38 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
 
   // Add Placed Signature
   const handleAddSignature = (sig: SignatureData) => {
+    const sigId = generateCanvasId('sig');
     const newPlaced: PlacedSignature = {
-      id: `sig-${Date.now()}`,
+      id: sigId,
       pageNumber: currentPageNum,
       xPercent: 35,
       yPercent: 70,
       widthPercent: 28,
-      heightPercent: 28 / sig.aspectRatio,
+      heightPercent: 28 / (sig.aspectRatio || 2),
       dataUrl: sig.dataUrl,
     };
     setPlacedSignatures((prev) => [...prev, newPlaced]);
+
+    const newElem: CanvasElement = {
+      id: sigId,
+      type: 'signature',
+      pageNumber: currentPageNum,
+      xPercent: 35,
+      yPercent: 70,
+      widthPercent: 28,
+      heightPercent: Math.max(6, 28 / (sig.aspectRatio || 2)),
+      dataUrl: sig.dataUrl,
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newElem]);
+    setSelectedCanvasElementId(newElem.id);
   };
 
   // Add Redaction Box
   const handleAddRedactionBox = () => {
+    const redactId = generateCanvasId('redact');
     const newBox: RedactionBox = {
-      id: `redact-${Date.now()}`,
+      id: redactId,
       pageNumber: currentPageNum,
       xPercent: 20,
       yPercent: 30,
@@ -667,6 +704,225 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
       heightPercent: 12,
     };
     setRedactions((prev) => [...prev, newBox]);
+
+    const newElem: CanvasElement = {
+      id: redactId,
+      type: 'redaction',
+      pageNumber: currentPageNum,
+      xPercent: 20,
+      yPercent: 30,
+      widthPercent: 60,
+      heightPercent: 12,
+      backgroundColor: '#000000',
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newElem]);
+    setSelectedCanvasElementId(newElem.id);
+  };
+
+  // Canvas Design Elements State Management
+  const pushCanvasState = (newElements: CanvasElement[]) => {
+    const trimmed = canvasHistory.slice(0, canvasHistoryIndex + 1);
+    setCanvasHistory([...trimmed, newElements]);
+    setCanvasHistoryIndex(trimmed.length);
+    setCanvasElements(newElements);
+  };
+
+  const handleCanvasUndo = () => {
+    if (canvasHistoryIndex > 0) {
+      const prevIdx = canvasHistoryIndex - 1;
+      setCanvasHistoryIndex(prevIdx);
+      setCanvasElements(canvasHistory[prevIdx]);
+      setSelectedCanvasElementId(null);
+    }
+  };
+
+  const handleCanvasRedo = () => {
+    if (canvasHistoryIndex < canvasHistory.length - 1) {
+      const nextIdx = canvasHistoryIndex + 1;
+      setCanvasHistoryIndex(nextIdx);
+      setCanvasElements(canvasHistory[nextIdx]);
+      setSelectedCanvasElementId(null);
+    }
+  };
+
+  const handleAddText = (variant: 'heading' | 'subheading' | 'body' | 'callout') => {
+    const isHeading = variant === 'heading';
+    const isSub = variant === 'subheading';
+    const isCallout = variant === 'callout';
+    const newEl: CanvasElement = {
+      id: generateCanvasId('text'),
+      type: 'text',
+      pageNumber: currentPageNum,
+      xPercent: 30,
+      yPercent: 35,
+      widthPercent: isHeading ? 45 : isSub ? 40 : 35,
+      heightPercent: isHeading ? 8 : isSub ? 6 : 5,
+      text: isHeading ? 'Heading Title' : isSub ? 'Subheading text' : isCallout ? 'Important Callout Note' : 'Paragraph text here…',
+      fontSize: isHeading ? 26 : isSub ? 18 : 13,
+      fontWeight: isHeading ? 'bold' : 'normal',
+      color: canvasPrefs.defaultTextColor || '#111827',
+      backgroundColor: isCallout ? 'rgba(254, 240, 138, 0.5)' : 'transparent',
+      fontFamily: canvasPrefs.defaultFont || 'Helvetica',
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newEl]);
+    if (canvasPrefs.autoSelectOnAdd) {
+      setSelectedCanvasElementId(newEl.id);
+    }
+  };
+
+  const handleAddShape = (shape: ShapeType) => {
+    const isLine = shape === 'line' || shape === 'arrow';
+    const newEl: CanvasElement = {
+      id: generateCanvasId('shape'),
+      type: 'shape',
+      shapeType: shape,
+      pageNumber: currentPageNum,
+      xPercent: 35,
+      yPercent: 40,
+      widthPercent: isLine ? 30 : 25,
+      heightPercent: isLine ? 3 : 18,
+      fillColor: isLine ? 'transparent' : (canvasPrefs.defaultShapeFill || 'rgba(59, 130, 246, 0.2)'),
+      strokeColor: canvasPrefs.defaultStrokeColor || '#2563eb',
+      strokeWidth: 2,
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newEl]);
+    if (canvasPrefs.autoSelectOnAdd) {
+      setSelectedCanvasElementId(newEl.id);
+    }
+  };
+
+  const handleAddStamp = (variant: StampVariant) => {
+    const newEl: CanvasElement = {
+      id: generateCanvasId('stamp'),
+      type: 'stamp',
+      stampVariant: variant,
+      stampText: variant.toUpperCase(),
+      pageNumber: currentPageNum,
+      xPercent: 35,
+      yPercent: 35,
+      widthPercent: 28,
+      heightPercent: 12,
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newEl]);
+    if (canvasPrefs.autoSelectOnAdd) {
+      setSelectedCanvasElementId(newEl.id);
+    }
+  };
+
+  const handleAddSticky = (color?: string) => {
+    const newEl: CanvasElement = {
+      id: generateCanvasId('sticky'),
+      type: 'sticky',
+      stickyColor: color || '#fef08a',
+      pageNumber: currentPageNum,
+      xPercent: 35,
+      yPercent: 30,
+      widthPercent: 24,
+      heightPercent: 20,
+      text: 'Add comment or note here…',
+      fontSize: 12,
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newEl]);
+    if (canvasPrefs.autoSelectOnAdd) {
+      setSelectedCanvasElementId(newEl.id);
+    }
+  };
+
+  const handleAddRedactionElement = (whiteout: boolean = false) => {
+    const newEl: CanvasElement = {
+      id: generateCanvasId('redact'),
+      type: 'redaction',
+      pageNumber: currentPageNum,
+      xPercent: 25,
+      yPercent: 30,
+      widthPercent: 50,
+      heightPercent: 8,
+      backgroundColor: whiteout ? '#ffffff' : '#000000',
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, newEl]);
+    if (canvasPrefs.autoSelectOnAdd) {
+      setSelectedCanvasElementId(newEl.id);
+    }
+  };
+
+  const handleAddImage = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) return;
+      const img = new Image();
+      img.onload = () => {
+        const aspect = (img.naturalWidth || 1) / (img.naturalHeight || 1);
+        const wPercent = 30;
+        const hPercent = Math.max(5, Math.min(60, wPercent / aspect));
+        const newEl: CanvasElement = {
+          id: generateCanvasId('img'),
+          type: 'image',
+          pageNumber: currentPageNum,
+          xPercent: 35,
+          yPercent: 35,
+          widthPercent: wPercent,
+          heightPercent: hPercent,
+          dataUrl,
+          zIndex: canvasElements.length + 1,
+        };
+        pushCanvasState([...canvasElements, newEl]);
+        if (canvasPrefs.autoSelectOnAdd) {
+          setSelectedCanvasElementId(newEl.id);
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUpdateCanvasElement = (id: string, updates: Partial<CanvasElement>) => {
+    const updated = canvasElements.map((el) => (el.id === id ? { ...el, ...updates } : el));
+    pushCanvasState(updated);
+  };
+
+  const handleDeleteCanvasElement = (id: string) => {
+    const updated = canvasElements.filter((el) => el.id !== id);
+    if (selectedCanvasElementId === id) {
+      setSelectedCanvasElementId(null);
+    }
+    pushCanvasState(updated);
+  };
+
+  const handleDuplicateCanvasElement = (id: string) => {
+    const source = canvasElements.find((el) => el.id === id);
+    if (!source) return;
+    const cloned: CanvasElement = {
+      ...source,
+      id: generateCanvasId('el'),
+      xPercent: Math.min(85, source.xPercent + 3),
+      yPercent: Math.min(85, source.yPercent + 3),
+      zIndex: canvasElements.length + 1,
+    };
+    pushCanvasState([...canvasElements, cloned]);
+    setSelectedCanvasElementId(cloned.id);
+  };
+
+  const handleBringForward = (id: string) => {
+    const updated = canvasElements.map((el) => (el.id === id ? { ...el, zIndex: (el.zIndex || 10) + 1 } : el));
+    pushCanvasState(updated);
+  };
+
+  const handleSendBackward = (id: string) => {
+    const updated = canvasElements.map((el) => (el.id === id ? { ...el, zIndex: Math.max(1, (el.zIndex || 10) - 1) } : el));
+    pushCanvasState(updated);
+  };
+
+  const handleClearPageElements = () => {
+    const updated = canvasElements.filter((el) => el.pageNumber !== currentPageNum);
+    setSelectedCanvasElementId(null);
+    pushCanvasState(updated);
   };
 
   // Run OCR on current page
@@ -715,17 +971,26 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
         currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
-      // 2. Signatures
-      if (placedSignatures.length > 0) {
-        setProcessingStatus('Baking digital signatures…');
-        modifiedBytes = await PDFEngineService.applySignatures(currentBuffer, placedSignatures);
+      // 2. Custom Canvas Design Elements (Text, Shapes, Stamps, Sticky Notes, Images, Signatures, Redactions)
+      if (canvasElements.length > 0) {
+        setProcessingStatus('Baking custom design elements…');
+        modifiedBytes = await PDFEngineService.applyDesignElements(currentBuffer, canvasElements);
         currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
-      // 3. Redactions
-      if (redactions.length > 0) {
+      // Standalone signatures not tracked in canvas elements
+      const unbakedSigs = placedSignatures.filter((s) => !canvasElements.some((el) => el.id === s.id));
+      if (unbakedSigs.length > 0) {
+        setProcessingStatus('Baking digital signatures…');
+        modifiedBytes = await PDFEngineService.applySignatures(currentBuffer, unbakedSigs);
+        currentBuffer = toArrayBuffer(modifiedBytes);
+      }
+
+      // Standalone redactions not tracked in canvas elements
+      const unbakedRedacts = redactions.filter((r) => !canvasElements.some((el) => el.id === r.id));
+      if (unbakedRedacts.length > 0) {
         setProcessingStatus('Flattening redaction blackouts…');
-        modifiedBytes = await PDFEngineService.applyRedactions(currentBuffer, redactions);
+        modifiedBytes = await PDFEngineService.applyRedactions(currentBuffer, unbakedRedacts);
         currentBuffer = toArrayBuffer(modifiedBytes);
       }
 
@@ -1170,6 +1435,46 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           </button>
         </div>
 
+        {/* Center-Right: Quick Tool Ribbon & Customize */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflowX: 'auto', maxWidth: '340px' }}>
+            {workspaceQuickTools.map((tId) => {
+              const toolMeta = TOOLS_REGISTRY.find((t) => t.id === tId);
+              if (!toolMeta) return null;
+              const isActive = currentToolTab === tId;
+              return (
+                <button
+                  key={tId}
+                  type="button"
+                  onClick={() => setCurrentToolTab(tId)}
+                  className={`btn btn-sm ${isActive ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{
+                    padding: '3px 8px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  title={toolMeta.description}
+                >
+                  {toolMeta.shortName || toolMeta.name}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsCustomizerOpen(true)}
+            className="btn btn-ghost btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', fontSize: '11px', flexShrink: 0 }}
+            title="Customize Tools & Design Canvas Defaults"
+          >
+            <Sliders size={13} />
+            <span>Customize</span>
+          </button>
+        </div>
+
         {/* Right: AI Studio & Export Trigger */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
@@ -1235,12 +1540,37 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             background: 'var(--bg-primary)',
             overflow: 'auto',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px',
+            justifyContent: 'flex-start',
+            padding: '16px 40px 60px 40px',
             position: 'relative',
           }}
         >
+          {/* Top Floating Design Toolbar */}
+          <DesignToolbar
+            onAddText={handleAddText}
+            onAddShape={handleAddShape}
+            onAddStamp={handleAddStamp}
+            onAddImage={handleAddImage}
+            onOpenSignature={() => setIsSigModalOpen(true)}
+            onAddSticky={handleAddSticky}
+            onAddRedaction={handleAddRedactionElement}
+            selectedElement={canvasElements.find((el) => el.id === selectedCanvasElementId) || null}
+            onUpdateSelected={(updates) => {
+              if (selectedCanvasElementId) handleUpdateCanvasElement(selectedCanvasElementId, updates);
+            }}
+            onDeleteSelected={() => {
+              if (selectedCanvasElementId) handleDeleteCanvasElement(selectedCanvasElementId);
+            }}
+            canUndo={canvasHistoryIndex > 0}
+            canRedo={canvasHistoryIndex < canvasHistory.length - 1}
+            onUndo={handleCanvasUndo}
+            onRedo={handleCanvasRedo}
+            onClearPage={handleClearPageElements}
+            elementsCount={canvasElements.filter((el) => el.pageNumber === currentPageNum).length}
+          />
+
           {activePage ? (
             <div style={{
               position: 'relative',
@@ -1252,6 +1582,22 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
               transition: 'transform var(--transition-fast)',
             }}>
               <canvas ref={canvasRef} style={{ display: 'block', borderRadius: 'var(--radius-sm)' }} />
+
+              {/* Interactive Design Layer: Free Text, Shapes, Stamps, Signatures, Images, Sticky Notes */}
+              <InteractiveDesignLayer
+                elements={canvasElements}
+                currentPageNum={currentPageNum}
+                zoomScale={zoomScale}
+                selectedElementId={selectedCanvasElementId}
+                onSelectElement={setSelectedCanvasElementId}
+                onUpdateElement={handleUpdateCanvasElement}
+                onDeleteElement={handleDeleteCanvasElement}
+                onDuplicateElement={handleDuplicateCanvasElement}
+                onBringForward={handleBringForward}
+                onSendBackward={handleSendBackward}
+                snapToGrid={canvasPrefs.snapToGrid}
+                gridSize={canvasPrefs.gridSize}
+              />
 
               {/* Drawing Annotation Layer */}
               <canvas
@@ -1936,17 +2282,39 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
             )}
 
             {(currentToolTab === 'annotate-pdf' || currentToolTab === 'edit-pdf' || currentToolTab === 'write-pdf') && (
-              <AnnotateTool
-                annotationMode={annotationMode}
-                onAnnotationModeChange={(m) => setAnnotationMode(m)}
-                annotationColor={annotationColor}
-                onAnnotationColorChange={(c) => setAnnotationColor(c)}
-                annotationWidth={annotationWidth}
-                onAnnotationWidthChange={(w) => setAnnotationWidth(w)}
-                onClearAnnotations={handleClearAnnotations}
-                isProcessing={isProcessing}
-                onProcess={handleExportPDF}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <DesignInspector
+                  selectedElement={canvasElements.find((el) => el.id === selectedCanvasElementId) || null}
+                  pageElements={canvasElements.filter((el) => el.pageNumber === currentPageNum)}
+                  onSelectElement={setSelectedCanvasElementId}
+                  onUpdateElement={handleUpdateCanvasElement}
+                  onDeleteElement={handleDeleteCanvasElement}
+                  onDuplicateElement={handleDuplicateCanvasElement}
+                  onBringForward={handleBringForward}
+                  onSendBackward={handleSendBackward}
+                  onAddText={handleAddText}
+                  onAddShape={handleAddShape}
+                  onAddStamp={handleAddStamp}
+                  onOpenSignature={() => setIsSigModalOpen(true)}
+                  onClearPage={handleClearPageElements}
+                  isProcessing={isProcessing}
+                  onExport={handleExportPDF}
+                />
+
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
+                  <AnnotateTool
+                    annotationMode={annotationMode}
+                    onAnnotationModeChange={(m) => setAnnotationMode(m)}
+                    annotationColor={annotationColor}
+                    onAnnotationColorChange={(c) => setAnnotationColor(c)}
+                    annotationWidth={annotationWidth}
+                    onAnnotationWidthChange={(w) => setAnnotationWidth(w)}
+                    onClearAnnotations={handleClearAnnotations}
+                    isProcessing={isProcessing}
+                    onProcess={handleExportPDF}
+                  />
+                </div>
+              </div>
             )}
 
             {(currentToolTab === 'organize' || currentToolTab === 'organize-pdf' || currentToolTab === 'reorder-pages' || currentToolTab === 'rearrange-pdf-pages' || currentToolTab === 'straighten-pdf' || !currentToolTab) && (
@@ -2268,6 +2636,17 @@ export const UniversalWorkspace: React.FC<UniversalWorkspaceProps> = ({
           setSelectedPageIndices(new Set([num - 1]));
           setSelectionAnchorIndex(num - 1);
         }}
+      />
+
+      {/* Workspace & Features Customizer Modal */}
+      <WorkspaceCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => {
+          setIsCustomizerOpen(false);
+          setWorkspaceQuickTools(StorageService.getWorkspaceQuickTools());
+          setCanvasPrefs(StorageService.getCanvasPreferences());
+        }}
+        onSaveWorkspaceTools={(tools) => setWorkspaceQuickTools(tools)}
       />
     </div>
   );

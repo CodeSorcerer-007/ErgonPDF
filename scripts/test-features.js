@@ -273,6 +273,63 @@ async function runSelfTests() {
     }
   });
 
+  // 26. Interactive Design Studio Canvas Elements
+  await test('applyDesignElements burns vector text, shapes, stamps and notes', async () => {
+    const designedBytes = await PDFEngineService.applyDesignElements(buffer, [
+      {
+        id: 'test-text-1',
+        type: 'text',
+        pageNumber: 1,
+        xPercent: 10,
+        yPercent: 10,
+        widthPercent: 40,
+        heightPercent: 8,
+        text: 'CONFIDENTIAL CONTRACT AGREEMENT',
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#dc2626',
+      },
+      {
+        id: 'test-shape-1',
+        type: 'shape',
+        shapeType: 'rectangle',
+        pageNumber: 1,
+        xPercent: 10,
+        yPercent: 20,
+        widthPercent: 30,
+        heightPercent: 10,
+        fillColor: 'rgba(59, 130, 246, 0.2)',
+        strokeColor: '#2563eb',
+        strokeWidth: 2,
+      },
+      {
+        id: 'test-stamp-1',
+        type: 'stamp',
+        stampVariant: 'approved',
+        pageNumber: 1,
+        xPercent: 60,
+        yPercent: 20,
+        widthPercent: 25,
+        heightPercent: 10,
+      },
+      {
+        id: 'test-sticky-1',
+        type: 'sticky',
+        stickyColor: '#fef08a',
+        pageNumber: 2,
+        xPercent: 15,
+        yPercent: 15,
+        widthPercent: 25,
+        heightPercent: 15,
+        text: 'Reviewer Note: Ready for client sign-off',
+      },
+    ]);
+
+    const doc = await PDFDocument.load(designedBytes);
+    if (doc.getPageCount() !== 2) throw new Error(`Expected 2 pages in designed document, got ${doc.getPageCount()}`);
+    if (designedBytes.byteLength <= buffer.byteLength) throw new Error('Designed PDF byte size should increase with embedded elements');
+  });
+
   console.log(`\n📊 Test Results: ${passed}/${total} Passed (${Math.round((passed / total) * 100)}%)`);
   if (passed === total) {
     console.log(`🎉 ALL ${total} ENGINE FEATURES VERIFIED WORKING 100%!`);

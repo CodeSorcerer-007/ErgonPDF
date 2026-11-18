@@ -18,6 +18,7 @@ import { AlternateMixModal } from './components/AlternateMixModal';
 import { InvoiceBuilderModal } from './components/InvoiceBuilderModal';
 import { JobApplicationModal } from './components/JobApplicationModal';
 import { CardCollageModal } from './components/CardCollageModal';
+import { WorkspaceCustomizerModal } from './components/WorkspaceCustomizerModal';
 import { Footer } from './components/Footer';
 
 import type { PDFDocumentState, RecentFile } from './types/pdf';
@@ -63,6 +64,7 @@ export function App() {
   const [isCardCollageOpen, setIsCardCollageOpen] = useState(false);
   const [cardCollageInitialMode, setCardCollageInitialMode] = useState<'card' | 'collage'>('card');
   const [mergeInitialFiles, setMergeInitialFiles] = useState<File[]>([]);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState(false);
 
   // Apply Theme attribute to documentElement with system preference detection
   useEffect(() => {
@@ -452,6 +454,7 @@ export function App() {
             onToggleTheme={handleToggleTheme}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenCustomizer={() => setIsCustomizerOpen(true)}
             onOpenBatch={() => setIsBatchModalOpen(true)}
             onOpenCompare={() => setIsCompareModalOpen(true)}
             onOpenAiStudio={() => {
@@ -479,6 +482,7 @@ export function App() {
               onSelectTool={handleSelectTool}
               favorites={favorites}
               onToggleFavorite={handleToggleFavorite}
+              onOpenCustomizer={() => setIsCustomizerOpen(true)}
             />
 
             {/* 5. Recently opened documents */}
@@ -547,6 +551,13 @@ export function App() {
         onClose={() => setIsSettingsModalOpen(false)}
         currentTheme={theme}
         onThemeChange={(t) => setTheme(t)}
+        onOpenCustomizer={() => setIsCustomizerOpen(true)}
+      />
+
+      {/* Workspace & Features Customizer Modal */}
+      <WorkspaceCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
       />
 
       {/* Docs Modal */}

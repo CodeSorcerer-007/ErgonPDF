@@ -8,7 +8,8 @@ import {
   Sparkles,
   Layers,
   GitCompare,
-  BookOpen
+  BookOpen,
+  Sliders
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -16,6 +17,7 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onOpenCommandPalette: () => void;
   onOpenSettings: () => void;
+  onOpenCustomizer?: () => void;
   onOpenBatch: () => void;
   onOpenCompare: () => void;
   onOpenAiStudio: () => void;
@@ -35,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenCommandPalette,
   onOpenSettings,
+  onOpenCustomizer,
   onOpenBatch,
   onOpenCompare,
   onOpenAiStudio,
@@ -216,6 +219,18 @@ export const Header: React.FC<HeaderProps> = ({
         >
           {currentTheme === 'dark' ? <Sun size={15} strokeWidth={1.6} /> : <Moon size={15} strokeWidth={1.6} />}
         </button>
+
+        {/* Customize Workspace */}
+        {onOpenCustomizer && (
+          <button 
+            onClick={onOpenCustomizer}
+            className="btn btn-ghost btn-icon"
+            title="Customize Features & Workspace"
+            aria-label="Customize Features & Workspace"
+          >
+            <Sliders size={15} strokeWidth={1.6} />
+          </button>
+        )}
 
         {/* Settings */}
         <button 

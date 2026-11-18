@@ -13,7 +13,8 @@ import type {
   CropSettings,
   ResizeSettings,
   QRCodeSettings,
-  FormFieldDef
+  FormFieldDef,
+  CanvasElement
 } from '../types/pdf';
 import { QRGenerator } from './qrGenerator.ts';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
@@ -597,6 +598,304 @@ export class PDFEngineService {
         });
       } catch (err) {
         console.warn(`Failed to embed signature on page ${sig.pageNumber}:`, err);
+      }
+    }
+
+    return await doc.save();
+  }
+
+  /**
+   * Embeds interactive canvas design elements (text, shapes, stamps, images, signatures, sticky notes, redactions)
+   * into the PDF document with vector fidelity and correct coordinate mapping.
+   *
+   * @param buffer - Input PDF ArrayBuffer.
+   * @param elements - Array of CanvasElement objects.
+   * @returns Uint8Array of the modified PDF.
+   */
+  static async applyDesignElements(
+    buffer: ArrayBuffer,
+    elements: CanvasElement[]
+  ): Promise<Uint8Array> {
+    if (!elements || elements.length === 0) {
+      return new Uint8Array(buffer);
+    }
+
+    const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    const pages = doc.getPages();
+
+    // Cache standard fonts
+    const helvetica = await doc.embedFont(StandardFonts.Helvetica);
+    const helveticaBold = await doc.embedFont(StandardFonts.HelveticaBold);
+    const times = await doc.embedFont(StandardFonts.TimesRoman);
+    const timesBold = await doc.embedFont(StandardFonts.TimesRomanBold);
+    const courier = await doc.embedFont(StandardFonts.Courier);
+    const courierBold = await doc.embedFont(StandardFonts.CourierBold);
+
+    const getFont = (family?: string, weight?: string) => {
+      const isBold = weight === 'bold';
+      if (family === 'TimesRoman') return isBold ? timesBold : times;
+      if (family === 'Courier') return isBold ? courierBold : courier;
+      return isBold ? helveticaBold : helvetica;
+    };
+
+    const hexToPdfRgb = (hex?: string, defaultRgb = rgb(0, 0, 0)) => {
+      if (!hex || typeof hex !== 'string') return defaultRgb;
+      if (hex.startsWith('rgba') || hex.startsWith('rgb')) {
+        const parts = hex.match(/\d+(\.\d+)?/g);
+        if (parts && parts.length >= 3) {
+          return rgb(
+            Math.min(1, Math.max(0, parseFloat(parts[0]) / 255)),
+            Math.min(1, Math.max(0, parseFloat(parts[1]) / 255)),
+            Math.min(1, Math.max(0, parseFloat(parts[2]) / 255))
+          );
+        }
+      }
+      const clean = hex.replace('#', '').trim();
+      if (clean.length === 3) {
+        return rgb(
+          parseInt(clean[0] + clean[0], 16) / 255,
+          parseInt(clean[1] + clean[1], 16) / 255,
+          parseInt(clean[2] + clean[2], 16) / 255
+        );
+      }
+      if (clean.length === 6) {
+        return rgb(
+          parseInt(clean.substring(0, 2), 16) / 255,
+          parseInt(clean.substring(2, 4), 16) / 255,
+          parseInt(clean.substring(4, 6), 16) / 255
+        );
+      }
+      return defaultRgb;
+    };
+
+    const sorted = [...elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+    for (const el of sorted) {
+      if (el.pageNumber < 1 || el.pageNumber > pages.length) continue;
+      const page = pages[el.pageNumber - 1];
+      const { width, height } = page.getSize();
+
+      const targetX = ((el.xPercent || 0) / 100) * width;
+      const targetWidth = Math.max(1, ((el.widthPercent || 10) / 100) * width);
+      const targetHeight = Math.max(1, ((el.heightPercent || 10) / 100) * height);
+      const targetY = height - ((el.yPercent || 0) / 100) * height - targetHeight;
+      const elOpacity = el.opacity !== undefined ? el.opacity : 1;
+
+      try {
+        if (el.type === 'text') {
+          const font = getFont(el.fontFamily, el.fontWeight);
+          const textColor = hexToPdfRgb(el.color, rgb(0.07, 0.09, 0.15));
+          const fontSize = Math.max(6, (el.fontSize || 14) * (width / 600));
+
+          if (el.backgroundColor && el.backgroundColor !== 'transparent') {
+            const bgColor = hexToPdfRgb(el.backgroundColor, rgb(1, 1, 1));
+            page.drawRectangle({
+              x: targetX,
+              y: targetY,
+              width: targetWidth,
+              height: targetHeight,
+              color: bgColor,
+              opacity: elOpacity * 0.9,
+            });
+          }
+
+          const lines = (el.text || '').split('\n');
+          const lineHeight = fontSize * 1.25;
+          let currentLineY = targetY + targetHeight - fontSize - 4;
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              currentLineY -= lineHeight;
+              continue;
+            }
+            const textWidth = font.widthOfTextAtSize(line, fontSize);
+            let textX = targetX + 4;
+            if (el.textAlign === 'center') {
+              textX = targetX + (targetWidth - textWidth) / 2;
+            } else if (el.textAlign === 'right') {
+              textX = targetX + targetWidth - textWidth - 4;
+            }
+
+            page.drawText(line, {
+              x: textX,
+              y: currentLineY,
+              size: fontSize,
+              font,
+              color: textColor,
+              opacity: elOpacity,
+            });
+            currentLineY -= lineHeight;
+          }
+        } else if (el.type === 'shape') {
+          const fillColor = el.fillColor && el.fillColor !== 'transparent' ? hexToPdfRgb(el.fillColor) : undefined;
+          const strokeColor = el.strokeColor && el.strokeColor !== 'transparent' ? hexToPdfRgb(el.strokeColor) : undefined;
+          const strokeWidth = el.strokeWidth || 2;
+
+          if (el.shapeType === 'circle') {
+            const rx = targetWidth / 2;
+            const ry = targetHeight / 2;
+            page.drawEllipse({
+              x: targetX + rx,
+              y: targetY + ry,
+              xScale: rx,
+              yScale: ry,
+              color: fillColor,
+              borderColor: strokeColor,
+              borderWidth: strokeColor ? strokeWidth : 0,
+              opacity: elOpacity,
+            });
+          } else if (el.shapeType === 'line') {
+            page.drawLine({
+              start: { x: targetX, y: targetY + targetHeight / 2 },
+              end: { x: targetX + targetWidth, y: targetY + targetHeight / 2 },
+              thickness: strokeWidth,
+              color: strokeColor || fillColor || rgb(0, 0, 0),
+              opacity: elOpacity,
+            });
+          } else if (el.shapeType === 'arrow') {
+            const arrowY = targetY + targetHeight / 2;
+            const lineCol = strokeColor || fillColor || rgb(0, 0, 0);
+            page.drawLine({
+              start: { x: targetX, y: arrowY },
+              end: { x: targetX + targetWidth - 10, y: arrowY },
+              thickness: strokeWidth,
+              color: lineCol,
+              opacity: elOpacity,
+            });
+            page.drawLine({
+              start: { x: targetX + targetWidth - 12, y: arrowY + 6 },
+              end: { x: targetX + targetWidth, y: arrowY },
+              thickness: strokeWidth,
+              color: lineCol,
+              opacity: elOpacity,
+            });
+            page.drawLine({
+              start: { x: targetX + targetWidth - 12, y: arrowY - 6 },
+              end: { x: targetX + targetWidth, y: arrowY },
+              thickness: strokeWidth,
+              color: lineCol,
+              opacity: elOpacity,
+            });
+          } else if (el.shapeType === 'checkmark') {
+            const markCol = strokeColor || hexToPdfRgb('#10b981');
+            page.drawLine({
+              start: { x: targetX + targetWidth * 0.2, y: targetY + targetHeight * 0.45 },
+              end: { x: targetX + targetWidth * 0.45, y: targetY + targetHeight * 0.2 },
+              thickness: Math.max(2, strokeWidth + 1),
+              color: markCol,
+              opacity: elOpacity,
+            });
+            page.drawLine({
+              start: { x: targetX + targetWidth * 0.45, y: targetY + targetHeight * 0.2 },
+              end: { x: targetX + targetWidth * 0.85, y: targetY + targetHeight * 0.8 },
+              thickness: Math.max(2, strokeWidth + 1),
+              color: markCol,
+              opacity: elOpacity,
+            });
+          } else {
+            page.drawRectangle({
+              x: targetX,
+              y: targetY,
+              width: targetWidth,
+              height: targetHeight,
+              color: fillColor,
+              borderColor: strokeColor,
+              borderWidth: strokeColor ? strokeWidth : 0,
+              opacity: elOpacity,
+            });
+          }
+        } else if (el.type === 'sticky') {
+          const noteBg = hexToPdfRgb(el.stickyColor || '#fef08a', rgb(0.99, 0.94, 0.54));
+          const noteBorder = hexToPdfRgb('#ca8a04', rgb(0.79, 0.54, 0.02));
+          page.drawRectangle({
+            x: targetX,
+            y: targetY,
+            width: targetWidth,
+            height: targetHeight,
+            color: noteBg,
+            borderColor: noteBorder,
+            borderWidth: 1,
+            opacity: elOpacity * 0.95,
+          });
+
+          const lines = (el.text || 'Note').split('\n');
+          const fontSize = Math.max(8, (el.fontSize || 12) * (width / 600));
+          const font = helvetica;
+          let textY = targetY + targetHeight - fontSize - 6;
+          for (const line of lines) {
+            page.drawText(line, {
+              x: targetX + 8,
+              y: textY,
+              size: fontSize,
+              font,
+              color: rgb(0.1, 0.1, 0.1),
+              opacity: elOpacity,
+            });
+            textY -= fontSize * 1.3;
+          }
+        } else if (el.type === 'stamp') {
+          const stampText = el.stampText || el.stampVariant?.toUpperCase() || 'APPROVED';
+          const isRed = ['REJECTED', 'VOID', 'URGENT', 'CONFIDENTIAL'].includes(stampText);
+          const stampCol = isRed ? rgb(0.88, 0.12, 0.12) : rgb(0.06, 0.65, 0.38);
+
+          page.drawRectangle({
+            x: targetX,
+            y: targetY,
+            width: targetWidth,
+            height: targetHeight,
+            borderColor: stampCol,
+            borderWidth: 3,
+            color: undefined,
+            opacity: elOpacity * 0.85,
+          });
+
+          const fontSize = Math.min(targetHeight * 0.45, (targetWidth / stampText.length) * 1.5);
+          const textW = helveticaBold.widthOfTextAtSize(stampText, fontSize);
+          page.drawText(stampText, {
+            x: targetX + (targetWidth - textW) / 2,
+            y: targetY + (targetHeight - fontSize) / 2,
+            size: fontSize,
+            font: helveticaBold,
+            color: stampCol,
+            opacity: elOpacity * 0.85,
+          });
+        } else if (el.type === 'redaction') {
+          page.drawRectangle({
+            x: targetX,
+            y: targetY,
+            width: targetWidth,
+            height: targetHeight,
+            color: el.backgroundColor === '#ffffff' ? rgb(1, 1, 1) : rgb(0, 0, 0),
+            opacity: 1,
+          });
+        } else if ((el.type === 'image' || el.type === 'signature') && el.dataUrl) {
+          const commaIdx = el.dataUrl.indexOf(',');
+          if (commaIdx >= 0) {
+            const base64 = el.dataUrl.substring(commaIdx + 1);
+            let imgBytes: Uint8Array;
+            if (typeof window !== 'undefined' && window.atob) {
+              const bin = window.atob(base64);
+              imgBytes = new Uint8Array(bin.length);
+              for (let i = 0; i < bin.length; i++) imgBytes[i] = bin.charCodeAt(i);
+            } else {
+              imgBytes = Buffer.from(base64, 'base64');
+            }
+
+            const embeddedImg = (el.dataUrl.includes('image/jpeg') || el.dataUrl.includes('image/jpg'))
+              ? await doc.embedJpg(imgBytes)
+              : await doc.embedPng(imgBytes);
+
+            page.drawImage(embeddedImg, {
+              x: targetX,
+              y: targetY,
+              width: targetWidth,
+              height: targetHeight,
+              opacity: elOpacity,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to burn design element ${el.id} on page ${el.pageNumber}:`, err);
       }
     }
 

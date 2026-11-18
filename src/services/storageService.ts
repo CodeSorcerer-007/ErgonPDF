@@ -1,9 +1,46 @@
-import type { RecentFile } from '../types/pdf';
+import type { RecentFile, CanvasPreferences } from '../types/pdf';
 
 const RECENT_FILES_KEY = 'ergonpdf_recent_files';
 const FAVORITES_KEY = 'ergonpdf_favorite_tools';
 const THEME_KEY = 'ergonpdf_theme';
 const DEFAULT_DPI_KEY = 'ergonpdf_default_dpi';
+const CUSTOM_SHELF_TOOLS_KEY = 'ergonpdf_custom_shelf_tools';
+const WORKSPACE_QUICK_TOOLS_KEY = 'ergonpdf_workspace_quick_tools';
+const CANVAS_PREFERENCES_KEY = 'ergonpdf_canvas_preferences';
+const DEFAULT_LANDING_TOOL_KEY = 'ergonpdf_default_landing_tool';
+
+export const DEFAULT_SHELF_TOOLS = [
+  'edit-pdf',
+  'merge-pdf',
+  'split-pdf',
+  'compress-pdf',
+  'sign-pdf',
+  'organize',
+  'ocr-pdf',
+  'watermark-pdf'
+];
+
+export const DEFAULT_WORKSPACE_QUICK_TOOLS = [
+  'edit-pdf',
+  'organize',
+  'sign-pdf',
+  'compress-pdf',
+  'watermark-pdf',
+  'protect-pdf',
+  'ocr-pdf',
+  'redact-pdf'
+];
+
+export const DEFAULT_CANVAS_PREFERENCES: CanvasPreferences = {
+  defaultFont: 'Helvetica',
+  defaultFontSize: 16,
+  defaultTextColor: '#111827',
+  defaultShapeFill: 'rgba(59, 130, 246, 0.15)',
+  defaultStrokeColor: '#2563eb',
+  snapToGrid: false,
+  gridSize: 2,
+  autoSelectOnAdd: true,
+};
 
 /**
  * Manages browser localStorage persistence for recent documents, pinned tools, theme preferences, and default rendering DPI.
@@ -122,5 +159,117 @@ export class StorageService {
    */
   static setTheme(theme: 'dark' | 'light' | 'system'): void {
     localStorage.setItem(THEME_KEY, theme);
+  }
+
+  /**
+   * Retrieves user-customized tools for the home Priority Shelf.
+   */
+  static getCustomShelfTools(): string[] {
+    try {
+      const data = localStorage.getItem(CUSTOM_SHELF_TOOLS_KEY);
+      if (!data) return [...DEFAULT_SHELF_TOOLS];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_SHELF_TOOLS];
+    } catch {
+      return [...DEFAULT_SHELF_TOOLS];
+    }
+  }
+
+  /**
+   * Persists user-customized tools for the home Priority Shelf.
+   */
+  static setCustomShelfTools(toolIds: string[]): void {
+    try {
+      localStorage.setItem(CUSTOM_SHELF_TOOLS_KEY, JSON.stringify(toolIds));
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Retrieves user-customized quick tools for the document workspace header.
+   */
+  static getWorkspaceQuickTools(): string[] {
+    try {
+      const data = localStorage.getItem(WORKSPACE_QUICK_TOOLS_KEY);
+      if (!data) return [...DEFAULT_WORKSPACE_QUICK_TOOLS];
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...DEFAULT_WORKSPACE_QUICK_TOOLS];
+    } catch {
+      return [...DEFAULT_WORKSPACE_QUICK_TOOLS];
+    }
+  }
+
+  /**
+   * Persists user-customized quick tools for the document workspace header.
+   */
+  static setWorkspaceQuickTools(toolIds: string[]): void {
+    try {
+      localStorage.setItem(WORKSPACE_QUICK_TOOLS_KEY, JSON.stringify(toolIds));
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Retrieves user preferences for the design canvas.
+   */
+  static getCanvasPreferences(): CanvasPreferences {
+    try {
+      const data = localStorage.getItem(CANVAS_PREFERENCES_KEY);
+      if (!data) return { ...DEFAULT_CANVAS_PREFERENCES };
+      const parsed = JSON.parse(data);
+      return { ...DEFAULT_CANVAS_PREFERENCES, ...parsed };
+    } catch {
+      return { ...DEFAULT_CANVAS_PREFERENCES };
+    }
+  }
+
+  /**
+   * Updates user preferences for the design canvas.
+   */
+  static setCanvasPreferences(prefs: Partial<CanvasPreferences>): void {
+    try {
+      const current = this.getCanvasPreferences();
+      localStorage.setItem(CANVAS_PREFERENCES_KEY, JSON.stringify({ ...current, ...prefs }));
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Retrieves the user's default landing tool when opening documents.
+   */
+  static getDefaultLandingTool(): string {
+    try {
+      return localStorage.getItem(DEFAULT_LANDING_TOOL_KEY) || 'edit-pdf';
+    } catch {
+      return 'edit-pdf';
+    }
+  }
+
+  /**
+   * Sets the user's default landing tool when opening documents.
+   */
+  static setDefaultLandingTool(toolId: string): void {
+    try {
+      localStorage.setItem(DEFAULT_LANDING_TOOL_KEY, toolId);
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Resets all tool and workspace customizations back to system defaults.
+   */
+  static resetWorkspaceCustomization(): void {
+    try {
+      localStorage.removeItem(CUSTOM_SHELF_TOOLS_KEY);
+      localStorage.removeItem(WORKSPACE_QUICK_TOOLS_KEY);
+      localStorage.removeItem(CANVAS_PREFERENCES_KEY);
+      localStorage.removeItem(DEFAULT_LANDING_TOOL_KEY);
+    } catch {
+      // ignore
+    }
   }
 }

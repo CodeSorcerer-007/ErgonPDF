@@ -151,3 +151,89 @@ export interface FormFieldDef {
   heightPercent: number;
   options?: string[];
 }
+
+export type CanvasElementType = 
+  | 'text' 
+  | 'shape' 
+  | 'image' 
+  | 'signature' 
+  | 'sticky' 
+  | 'redaction' 
+  | 'stamp';
+
+export type ShapeType = 
+  | 'rectangle' 
+  | 'rounded-rectangle' 
+  | 'circle' 
+  | 'line' 
+  | 'arrow' 
+  | 'star' 
+  | 'checkmark';
+
+export type StampVariant = 
+  | 'approved' 
+  | 'confidential' 
+  | 'draft' 
+  | 'urgent' 
+  | 'void' 
+  | 'completed' 
+  | 'rejected'
+  | 'custom';
+
+export interface CanvasElement {
+  id: string;
+  type: CanvasElementType;
+  pageNumber: number;
+  xPercent: number; // 0 to 100
+  yPercent: number; // 0 to 100
+  widthPercent: number; // 0 to 100
+  heightPercent: number; // 0 to 100
+  rotation?: number; // degrees
+  opacity?: number; // 0 to 1
+  locked?: boolean;
+  zIndex?: number;
+
+  // Text properties
+  text?: string;
+  fontSize?: number; // pt size
+  fontFamily?: 'Helvetica' | 'TimesRoman' | 'Courier';
+  fontWeight?: 'normal' | 'bold';
+  fontStyle?: 'normal' | 'italic';
+  color?: string; // hex
+  textAlign?: 'left' | 'center' | 'right';
+  backgroundColor?: string;
+  padding?: number;
+
+  // Shape properties
+  shapeType?: ShapeType;
+  fillColor?: string;
+  strokeColor?: string;
+  strokeWidth?: number;
+
+  // Image / Stamp / Signature properties
+  dataUrl?: string;
+  stampText?: string;
+  stampVariant?: StampVariant;
+
+  // Sticky note properties
+  stickyColor?: string;
+}
+
+export interface CanvasPreferences {
+  defaultFont: 'Helvetica' | 'TimesRoman' | 'Courier';
+  defaultFontSize: number;
+  defaultTextColor: string;
+  defaultShapeFill: string;
+  defaultStrokeColor: string;
+  snapToGrid: boolean;
+  gridSize: number; // in percent (e.g. 2%)
+  autoSelectOnAdd: boolean;
+}
+
+export interface WorkspaceCustomization {
+  shelfToolIds: string[];
+  workspaceQuickToolIds: string[];
+  defaultLandingTool: string;
+  canvasPreferences: CanvasPreferences;
+}
+

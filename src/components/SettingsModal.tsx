@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShieldCheck, Sun, Moon, Check, Trash2 } from 'lucide-react';
+import { X, ShieldCheck, Sun, Moon, Check, Trash2, Sliders } from 'lucide-react';
 import { StorageService } from '../services/storageService';
 
 interface SettingsModalProps {
@@ -7,6 +7,7 @@ interface SettingsModalProps {
   onClose: () => void;
   currentTheme: 'dark' | 'light' | 'system';
   onThemeChange: (theme: 'dark' | 'light' | 'system') => void;
+  onOpenCustomizer?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -14,6 +15,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   currentTheme,
   onThemeChange,
+  onOpenCustomizer,
 }) => {
   const [defaultDpi, setDefaultDpi] = useState<string>(() => String(StorageService.getDefaultDpi()));
   const [cacheCleared, setCacheCleared] = useState(false);
@@ -129,6 +131,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <option value="300">300 DPI — High-Resolution Print Quality</option>
             </select>
           </div>
+
+          {/* Workspace Customization */}
+          {onOpenCustomizer && (
+            <div style={{
+              padding: '14px',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-subtle)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <div>
+                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                  Workspace & Feature Customizer
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Add or delete tools from shelf, customize quick ribbons & canvas defaults.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCustomizer();
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Sliders size={14} />
+                <span>Customize…</span>
+              </button>
+            </div>
+          )}
 
           {/* Privacy Audit Card */}
           <div className="glass-card" style={{ padding: '14px 16px', background: 'var(--bg-tertiary)' }}>

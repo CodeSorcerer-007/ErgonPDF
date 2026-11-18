@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Layers, 
@@ -10,15 +10,21 @@ import {
   FileOutput, 
   CheckSquare, 
   Star, 
-  ArrowRight 
+  ArrowRight,
+  Sliders,
+  Plus,
+  Trash2,
+  Edit3
 } from 'lucide-react';
 import { TOOLS_REGISTRY } from '../config/toolsRegistry';
+import { StorageService } from '../services/storageService';
 import type { PDFTool } from '../types/pdf';
 
 interface FrequentlyUsedShelfProps {
   onSelectTool: (id: string) => void;
   favorites: string[];
   onToggleFavorite: (id: string) => void;
+  onOpenCustomizer?: () => void;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -31,16 +37,37 @@ const ICON_MAP: Record<string, React.ElementType> = {
   FileOutput,
   CheckSquare,
   FileText,
+  Edit3,
 };
 
 export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
   onSelectTool,
   favorites,
   onToggleFavorite,
+  onOpenCustomizer,
 }) => {
-  const popularTools = TOOLS_REGISTRY.filter((tool) => tool.popular).slice(0, 8);
+  const [shelfToolIds, setShelfToolIds] = useState<string[]>(() => StorageService.getCustomShelfTools());
+  const [isCustomizeMode, setIsCustomizeMode] = useState(false);
 
-  if (popularTools.length === 0) return null;
+  // Sync with storage on mount and window focus
+  useEffect(() => {
+    const handleStorageUpdate = () => {
+      setShelfToolIds(StorageService.getCustomShelfTools());
+    };
+    window.addEventListener('storage', handleStorageUpdate);
+    return () => window.removeEventListener('storage', handleStorageUpdate);
+  }, []);
+
+  const handleRemoveTool = (e: React.MouseEvent, toolId: string) => {
+    e.stopPropagation();
+    const updated = shelfToolIds.filter((id) => id !== toolId);
+    setShelfToolIds(updated);
+    StorageService.setCustomShelfTools(updated);
+  };
+
+  const shelfTools: PDFTool[] = shelfToolIds
+    .map((id) => TOOLS_REGISTRY.find((t) => t.id === id))
+    .filter((t): t is PDFTool => Boolean(t));
 
   return (
     <section 
@@ -54,6 +81,8 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
         borderBottom: '1px solid var(--border-subtle)',
         paddingBottom: '12px',
         marginBottom: '20px',
+        flexWrap: 'wrap',
+        gap: '10px',
       }}>
         <div>
           <h2 style={{
@@ -64,16 +93,44 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
             letterSpacing: '-0.02em',
             margin: 0,
           }}>
-            Frequently Used Tools
+            Priority Tools Shelf
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-            High-frequency operations for rapid, local document transformation.
+            {isCustomizeMode 
+              ? 'Click ✕ on any tool to delete it from your shelf, or add more tools.' 
+              : 'Your customizable fast-access tool dock. High-frequency local operations.'}
           </p>
         </div>
-        <span className="badge badge-accent" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>★</span>
-          <span>Priority Shelf</span>
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Toggle Customize Mode Button */}
+          <button
+            type="button"
+            onClick={() => setIsCustomizeMode((prev) => !prev)}
+            className={`btn btn-sm ${isCustomizeMode ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Sliders size={13} />
+            <span>{isCustomizeMode ? 'Done Customizing' : 'Customize Shelf'}</span>
+          </button>
+
+          {onOpenCustomizer && (
+            <button
+              type="button"
+              onClick={onOpenCustomizer}
+              className="btn btn-ghost btn-sm"
+              style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              title="Open full workspace customizer modal"
+            >
+              <span>More Options…</span>
+            </button>
+          )}
+
+          <span className="badge badge-accent" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>★</span>
+            <span>Priority Dock</span>
+          </span>
+        </div>
       </div>
 
       <div style={{
@@ -81,7 +138,7 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
         gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
         gap: '16px',
       }}>
-        {popularTools.map((tool: PDFTool) => {
+        {shelfTools.map((tool: PDFTool) => {
           const Icon = ICON_MAP[tool.iconName] || FileText;
           const isFavorited = favorites.includes(tool.id);
 
@@ -94,25 +151,28 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  onSelectTool(tool.id);
+                  if (!isCustomizeMode) onSelectTool(tool.id);
                 }
               }}
-              onClick={() => onSelectTool(tool.id)}
-              className="tool-card tool-card-popular"
+              onClick={() => {
+                if (!isCustomizeMode) onSelectTool(tool.id);
+              }}
+              className="tool-card tool-card-popular animate-fade-in"
               style={{
                 padding: '18px 20px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                cursor: 'pointer',
+                cursor: isCustomizeMode ? 'default' : 'pointer',
                 position: 'relative',
                 borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-medium)',
+                border: isCustomizeMode ? '1px dashed var(--accent-primary)' : '1px solid var(--border-medium)',
                 background: 'var(--bg-card)',
+                transition: 'all 0.15s ease',
               }}
             >
               <div>
-                {/* Header row: Icon + Badges + Favorite */}
+                {/* Header row: Icon + Badges + Favorite/Remove */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -134,26 +194,42 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="badge badge-accent" style={{ fontSize: '10px', padding: '1px 6px' }}>
-                      Popular
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFavorite(tool.id);
-                      }}
-                      className="btn btn-ghost btn-icon"
-                      style={{ padding: '3px' }}
-                      title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
-                      aria-label={isFavorited ? `Remove ${tool.name} from favorites` : `Add ${tool.name} to favorites`}
-                    >
-                      <Star 
-                        size={13} 
-                        fill={isFavorited ? 'var(--accent-primary)' : 'transparent'} 
-                        color={isFavorited ? 'var(--accent-primary)' : 'var(--text-muted)'} 
-                      />
-                    </button>
+                    {isCustomizeMode ? (
+                      /* Delete / Remove tool from shelf */
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveTool(e, tool.id)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Delete from shelf"
+                      >
+                        <Trash2 size={12} />
+                        <span>Remove</span>
+                      </button>
+                    ) : (
+                      <>
+                        <span className="badge badge-accent" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                          Priority
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(tool.id);
+                          }}
+                          className="btn btn-ghost btn-icon"
+                          style={{ padding: '3px' }}
+                          title={isFavorited ? 'Remove from favorites' : 'Add to favorites'}
+                          aria-label={isFavorited ? `Remove ${tool.name} from favorites` : `Add ${tool.name} to favorites`}
+                        >
+                          <Star 
+                            size={13} 
+                            fill={isFavorited ? 'var(--accent-primary)' : 'transparent'} 
+                            color={isFavorited ? 'var(--accent-primary)' : 'var(--text-muted)'} 
+                          />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -190,13 +266,56 @@ export const FrequentlyUsedShelf: React.FC<FrequentlyUsedShelfProps> = ({
                   color: 'var(--accent-primary)',
                   fontWeight: 600,
                 }}>
-                  <span>Open</span>
-                  <ArrowRight size={11} strokeWidth={2} />
+                  <span>{isCustomizeMode ? 'Customizable' : 'Open'}</span>
+                  {!isCustomizeMode && <ArrowRight size={11} strokeWidth={2} />}
                 </div>
               </div>
             </div>
           );
         })}
+
+        {/* Add Tool Card (In Customize Mode or when shelf is short) */}
+        {(isCustomizeMode || shelfTools.length < 4) && (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onOpenCustomizer?.()}
+            style={{
+              padding: '24px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius-md)',
+              border: '2px dashed var(--accent-primary)',
+              background: 'rgba(59, 130, 246, 0.04)',
+              color: 'var(--accent-primary)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--accent-primary-light, rgba(59, 130, 246, 0.15))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Plus size={20} />
+            </div>
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: 700, display: 'block' }}>
+                + Add Feature to Shelf
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', display: 'block' }}>
+                Choose from all 134 precision tools
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

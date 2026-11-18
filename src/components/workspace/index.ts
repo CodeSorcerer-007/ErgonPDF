@@ -39,3 +39,7 @@ export * from './ViewPdfTool';
 export * from './AiChatTool';
 export * from './TranslatePdfTool';
 export * from './PdfSummarizeTool';
+export * from './InteractiveDesignLayer';
+export * from './DesignToolbar';
+export * from './DesignInspector';
+
